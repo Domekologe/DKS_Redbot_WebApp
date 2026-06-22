@@ -87,10 +87,14 @@
 
   // Rebuild on any prop change (avoid stale state).
   // Reference every prop so Svelte tracks them all as dependencies.
+  // In-place aktualisieren statt zerstören/neu erstellen (deutlich performanter, kein
+  // Flackern/Neu-Animieren bei jedem Prop-Wechsel wie z. B. Serien-Toggle).
   function rebuild(_l: unknown, _d: unknown, _s: unknown, _a: unknown) {
     if (!chart) return;
-    chart.destroy();
-    chart = new Chart(canvas, buildConfig());
+    const cfg = buildConfig();
+    chart.data = cfg.data;
+    if (cfg.options) chart.options = cfg.options;
+    chart.update();
   }
   $: rebuild(labels, datasets, stacked, area);
 </script>

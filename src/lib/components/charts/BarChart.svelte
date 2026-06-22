@@ -77,8 +77,10 @@
 
   function rebuild(_l: unknown, _d: unknown, _s: unknown, _h: unknown) {
     if (!chart) return;
-    chart.destroy();
-    chart = new Chart(canvas, buildConfig());
+    const cfg = buildConfig();
+    chart.data = cfg.data;
+    if (cfg.options) chart.options = cfg.options;
+    chart.update();
   }
   $: rebuild(labels, datasets, stacked, horizontal);
 </script>

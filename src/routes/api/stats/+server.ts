@@ -9,6 +9,7 @@ const METHODS: Record<string, string> = {
   status: 'serverstats.status',
   invites: 'serverstats.invites',
   activity: 'serverstats.activity',
+  commands: 'serverstats.commands',
   member_drilldown: 'serverstats.member_drilldown',
   channel_drilldown: 'serverstats.channel_drilldown'
 };

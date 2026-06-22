@@ -22,7 +22,7 @@
     user: { username: string } | null;
   };
 
-  type Cmd = { name: string; description: string; cog: string };
+  type Cmd = { name: string; description: string; cog: string; repo?: string | null };
 
   $: c = data.commands ?? { bot: null, prefix: [], slash: [], counts: { prefix: 0, slash: 0 } };
   $: stats = data.stats ?? {};
@@ -142,7 +142,10 @@
                 <code class="text-sm text-primary">/{cmd.name}</code>
                 <p class="mt-0.5 truncate text-xs text-muted-foreground">{cmd.description}</p>
               </div>
-              <span class="shrink-0 text-xs text-muted-foreground">{cmd.cog}</span>
+              <div class="flex shrink-0 flex-col items-end gap-0.5">
+                <span class="text-xs text-muted-foreground">{cmd.cog}</span>
+                {#if cmd.repo}<span class="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground" title="Repo">{cmd.repo}</span>{/if}
+              </div>
             </div>
           {:else}
             <p class="px-4 py-3 text-sm text-muted-foreground">—</p>
@@ -160,7 +163,10 @@
                 <code class="text-sm text-primary">{cmd.name}</code>
                 <p class="mt-0.5 truncate text-xs text-muted-foreground">{cmd.description}</p>
               </div>
-              <span class="shrink-0 text-xs text-muted-foreground">{cmd.cog}</span>
+              <div class="flex shrink-0 flex-col items-end gap-0.5">
+                <span class="text-xs text-muted-foreground">{cmd.cog}</span>
+                {#if cmd.repo}<span class="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground" title="Repo">{cmd.repo}</span>{/if}
+              </div>
             </div>
           {:else}
             <p class="px-4 py-3 text-sm text-muted-foreground">—</p>

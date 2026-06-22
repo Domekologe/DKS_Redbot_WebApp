@@ -10,7 +10,9 @@ const METHODS: Record<string, string> = {
   refresh_sessions: 'dashboard.refresh_sessions',
   pages_save: 'pages.save',
   pages_delete: 'pages.delete',
-  pages_get: 'pages.get'
+  pages_get: 'pages.get',
+  audit_list: 'audit.list',
+  system_info: 'system.info'
 };
 
 export const POST: RequestHandler = async ({ locals, request }) => {

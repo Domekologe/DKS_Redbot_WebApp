@@ -3,7 +3,13 @@
 // werden (XSS-sicher), danach werden Markdown-Konstrukte in Tags umgewandelt.
 
 function esc(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  // Auch " und ' escapen: Inhalte landen u. a. in Attributwerten (href="…").
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function inline(s: string): string {

@@ -2,6 +2,7 @@
   import '../app.css';
   import { onMount } from 'svelte';
   import { setLocale, t, locale } from '$lib/i18n';
+  import CommandPalette from '$lib/components/CommandPalette.svelte';
   export let data: {
     user: { username: string; avatar?: string | null } | null;
     pages?: Array<{ slug: string; title: string; nav: boolean; visibility: string }>;
@@ -10,10 +11,22 @@
   // Custom Pages in der Navigation: öffentliche immer, private nur eingeloggt.
   $: navPages = (data.pages ?? []).filter((p) => p.nav && (p.visibility === 'public' || data.user));
 
+  let theme = 'dark';
   onMount(() => {
     const saved = typeof localStorage !== 'undefined' && localStorage.getItem('locale');
     if (saved) setLocale(saved);
+    const savedTheme = typeof localStorage !== 'undefined' && localStorage.getItem('theme');
+    if (savedTheme === 'light') {
+      theme = 'light';
+      document.documentElement.classList.remove('dark');
+    }
   });
+
+  function toggleTheme() {
+    theme = theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    if (typeof localStorage !== 'undefined') localStorage.setItem('theme', theme);
+  }
 
   function onLocaleChange(e: Event) {
     setLocale((e.target as HTMLSelectElement).value);
@@ -25,6 +38,8 @@
     { href: '/commands', key: 'nav.commands' }
   ];
 </script>
+
+<CommandPalette user={data.user} pages={data.pages ?? []} />
 
 <div class="flex min-h-screen">
   <aside class="hidden w-60 shrink-0 border-r border-border bg-card/40 p-4 md:block">
@@ -44,9 +59,12 @@
       {#if data.user}
         <a href="/guilds" class="block rounded-md px-3 py-2 hover:bg-secondary">{$t('nav.guilds')}</a>
         <a href="/stats" class="block rounded-md px-3 py-2 hover:bg-secondary">{$t('nav.stats')}</a>
+        <a href="/announce" class="block rounded-md px-3 py-2 hover:bg-secondary">{$t('nav.announce')}</a>
         <a href="/cogs" class="block rounded-md px-3 py-2 hover:bg-secondary">{$t('nav.cogs')}</a>
         <a href="/settings" class="block rounded-md px-3 py-2 hover:bg-secondary">{$t('nav.settings')}</a>
         <a href="/pages" class="block rounded-md px-3 py-2 hover:bg-secondary">{$t('nav.pages')}</a>
+        <a href="/audit" class="block rounded-md px-3 py-2 hover:bg-secondary">{$t('nav.audit')}</a>
+        <a href="/system" class="block rounded-md px-3 py-2 hover:bg-secondary">{$t('nav.system')}</a>
         <a href="/docs/integration" class="block rounded-md px-3 py-2 text-muted-foreground hover:bg-secondary">{$t('nav.integration_docs')}</a>
       {/if}
     </nav>
@@ -56,6 +74,12 @@
     <header class="flex items-center justify-between border-b border-border px-6 py-3">
       <div class="text-base font-bold md:hidden">{$t('app.title')}</div>
       <div class="ml-auto flex items-center gap-3">
+        <button
+          type="button"
+          class="rounded-md border border-input bg-background px-2 py-1 text-sm"
+          title="Theme"
+          on:click={toggleTheme}
+        >{theme === 'dark' ? '☀️' : '🌙'}</button>
         <select
           class="rounded-md border border-input bg-background px-2 py-1 text-sm"
           value={$locale}

@@ -4,6 +4,7 @@
   import BarChart from '$lib/components/charts/BarChart.svelte';
   import DonutChart from '$lib/components/charts/DonutChart.svelte';
   import SeriesToggle from '$lib/components/charts/SeriesToggle.svelte';
+  import { onDestroy } from 'svelte';
   import { t } from '$lib/i18n';
   import type { StatsGuild } from './+page.server';
 
@@ -26,6 +27,7 @@
     | 'status'
     | 'invites'
     | 'activity'
+    | 'commands'
     | 'member_drilldown'
     | 'channel_drilldown';
 
@@ -36,6 +38,7 @@
     { key: 'status', tkey: 'stats.menu_status' },
     { key: 'invites', tkey: 'stats.menu_invites' },
     { key: 'activity', tkey: 'stats.menu_activity' },
+    { key: 'commands', tkey: 'stats.menu_commands' },
     { key: 'member_drilldown', tkey: 'stats.menu_member_drilldown' },
     { key: 'channel_drilldown', tkey: 'stats.menu_channel_drilldown' }
   ];
@@ -59,8 +62,10 @@
   // Damit Reaktivität nicht in eine Endlosschleife läuft, hängen wir den
   // Fetch nur an die Eingangs-Parameter, nicht an `result`.
   let lastKey = '';
+  let reqSeq = 0;
 
   async function fetchStats(key: string) {
+    const seq = ++reqSeq; // nur die jeweils NEUESTE Anfrage darf das Ergebnis setzen
     loading = true;
     error = '';
     try {
@@ -76,6 +81,7 @@
         })
       });
       const j = await res.json();
+      if (seq !== reqSeq) return; // veraltete Antwort (User hat inzwischen umgeschaltet)
       if (j.error) {
         error = j.error;
         result = null;
@@ -86,11 +92,14 @@
         if (section === 'channel_drilldown' && j.channel_id != null) channelId = j.channel_id;
       }
     } catch (e) {
+      if (seq !== reqSeq) return;
       error = e instanceof Error ? e.message : $t('stats.load_error');
       result = null;
     } finally {
-      loading = false;
-      lastKey = key;
+      if (seq === reqSeq) {
+        loading = false;
+        lastKey = key;
+      }
     }
   }
 
@@ -99,6 +108,22 @@
   $: if (selectedGuild && requestKey !== lastKey) {
     fetchStats(requestKey);
   }
+
+  // Auto-Aktualisierung: alle 15s neu laden, solange aktiv.
+  let auto = false;
+  let autoTimer: ReturnType<typeof setInterval> | null = null;
+  $: {
+    if (autoTimer) {
+      clearInterval(autoTimer);
+      autoTimer = null;
+    }
+    if (auto && selectedGuild) {
+      autoTimer = setInterval(() => fetchStats(requestKey), 15000);
+    }
+  }
+  onDestroy(() => {
+    if (autoTimer) clearInterval(autoTimer);
+  });
 
   // Sektionswechsel → Toggle-Status zurücksetzen.
   function selectSection(s: Section) {
@@ -191,6 +216,10 @@
             <option value={d}>{$t('stats.days', { n: d })}</option>
           {/each}
         </select>
+      </label>
+      <label class="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <input type="checkbox" bind:checked={auto} class="accent-primary" />
+        {$t('stats.auto_refresh')}
       </label>
     </div>
   </div>
@@ -442,6 +471,44 @@
                 </table>
               {:else}
                 <p class="text-sm text-muted-foreground">{$t('stats.no_activity_data')}</p>
+              {/if}
+            </Card>
+
+          <!-- COMMANDS ───────────────────────────────────────────── -->
+          {:else if section === 'commands'}
+            <div class="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              <Card class="p-4"><p class="text-xs uppercase tracking-wide text-muted-foreground">{$t('stats.total')}</p><p class="mt-1.5 text-2xl font-semibold">{result.total ?? 0}</p></Card>
+              <Card class="p-4"><p class="text-xs uppercase tracking-wide text-muted-foreground">{$t('stats.unique_commands')}</p><p class="mt-1.5 text-2xl font-semibold">{result.unique_commands ?? 0}</p></Card>
+              <Card class="p-4"><p class="text-xs uppercase tracking-wide text-muted-foreground">{$t('stats.errors')}</p><p class="mt-1.5 text-2xl font-semibold">{result.total_errors ?? 0}</p></Card>
+            </div>
+            <Card class="p-4">
+              <p class="mb-3 text-sm font-semibold">{$t('stats.menu_commands')}</p>
+              {#if (result.values ?? []).some((v) => v > 0)}
+                <BarChart labels={result.labels} datasets={[{ label: $t('stats.menu_commands'), color: COLORS.blue, data: result.values }]} />
+              {/if}
+              {#if (result.top_commands ?? []).length}
+                <table class="mt-3 w-full text-sm">
+                  <thead>
+                    <tr class="text-left text-xs text-muted-foreground">
+                      <th class="py-1.5 pr-2 font-medium">#</th>
+                      <th class="py-1.5 pr-2 font-medium">{$t('stats.col_command')}</th>
+                      <th class="py-1.5 text-right font-medium">{$t('stats.total')}</th>
+                      <th class="py-1.5 text-right font-medium">{$t('stats.errors')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {#each result.top_commands as c, i (c.name)}
+                      <tr class="border-b border-border/40 last:border-0">
+                        <td class="py-1.5 pr-2 text-muted-foreground">{i + 1}</td>
+                        <td class="py-1.5 pr-2"><code class="text-primary">{c.name}</code></td>
+                        <td class="py-1.5 text-right tabular-nums">{c.count}</td>
+                        <td class="py-1.5 text-right tabular-nums {c.errors ? 'text-destructive' : 'text-muted-foreground'}">{c.errors}</td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              {:else}
+                <p class="text-sm text-muted-foreground">{$t('stats.no_command_data')}</p>
               {/if}
             </Card>
 

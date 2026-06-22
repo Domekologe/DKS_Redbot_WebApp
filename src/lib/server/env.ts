@@ -17,6 +17,16 @@ export const config = {
   sessionMaxAge: 60 * 60 * 24 * 7 // 7 Tage
 };
 
+// FAIL-CLOSED: In Produktion ohne echtes SESSION_SECRET NICHT starten – sonst sind
+// Session-Cookies mit dem öffentlich bekannten Default-Secret fälschbar (Identitäts-Spoofing).
+const _isProd = (env.NODE_ENV ?? '') === 'production';
+if (_isProd && (!env.SESSION_SECRET || config.sessionSecret === 'CHANGE_ME_dev_only_secret')) {
+  throw new Error(
+    'SESSION_SECRET ist in Produktion nicht gesetzt. Abbruch: ohne starkes Secret könnten ' +
+      'Sessions gefälscht werden. Setze SESSION_SECRET (z. B. `openssl rand -hex 32`).'
+  );
+}
+
 export function assertConfig(): string[] {
   const missing: string[] = [];
   if (!config.discordClientId) missing.push('DISCORD_CLIENT_ID');
