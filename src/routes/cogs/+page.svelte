@@ -5,7 +5,7 @@
   import { t } from '$lib/i18n';
 
   export let data: {
-    cogs: Array<{ name: string; loaded: boolean; has_dashboard: boolean }>;
+    cogs: Array<{ name: string; loaded: boolean; has_dashboard: boolean; repo?: string | null }>;
     slash: Array<{ name: string; type: number; cog: string; enabled: boolean }>;
     repos: Array<{
       name: string;
@@ -155,7 +155,8 @@
               <span class="truncate text-sm {c.loaded ? 'font-medium' : 'text-muted-foreground'}">{c.name}</span>
             </div>
             <div class="flex shrink-0 items-center gap-2">
-              {#if c.has_dashboard}<span class="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] text-primary">DB</span>{/if}
+              {#if c.repo}<span class="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground" title="Repo">{c.repo}</span>{/if}
+              {#if c.has_dashboard}<span class="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] text-primary" title="Dashboard-Integration">DB</span>{/if}
               {#if c.loaded}<button type="button" class="text-xs text-muted-foreground hover:text-foreground" on:click={() => reloadCog(c.name)}>↻</button>{/if}
             </div>
           </Card>
