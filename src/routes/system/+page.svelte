@@ -14,6 +14,16 @@
   let updateLog = '';
   let updatePhase: '' | 'building' | 'restarting' | 'done' | 'error' = '';
   let updateError = '';
+  let restartManual = false; // Build ok, aber Dienst-Neustart muss manuell erfolgen.
+
+  // Letzte aussagekraeftige Fehlerzeile aus dem Log ziehen.
+  function extractError(log: string): string {
+    const lines = log.split('\n').map((l) => l.trim()).filter(Boolean);
+    const hit = [...lines].reverse().find((l) =>
+      /error|fatal|fehlgeschlagen|denied|cannot|not found|abort/i.test(l)
+    );
+    return hit ?? $t('system.update_failed');
+  }
 
   function askUpdate() {
     showConfirm = true;
@@ -24,6 +34,7 @@
     updating = true;
     updateLog = '';
     updateError = '';
+    restartManual = false;
     updatePhase = 'building';
     try {
       const res = await fetch('/api/update', { method: 'POST' });
@@ -59,7 +70,21 @@
           return;
         }
         updateLog = j.log ?? '';
+        // Build/Script abgebrochen → Fehler aus dem Log anzeigen, kein Timeout.
+        if (j.failed) {
+          updatePhase = 'error';
+          updateError = extractError(updateLog);
+          updating = false;
+          return;
+        }
         if (j.done) {
+          // Build ok, aber Dienst konnte sich nicht selbst neu starten.
+          if (j.restartSkipped) {
+            updatePhase = 'done';
+            restartManual = true;
+            updating = false;
+            return;
+          }
           updatePhase = 'restarting';
         }
       } catch {
@@ -163,6 +188,24 @@
     <Card class="p-5">
       <h2 class="mb-1 text-base font-semibold">{$t('system.update_title')}</h2>
       <p class="mb-3 text-sm text-muted-foreground">{$t('system.update_desc')}</p>
+
+      <!-- Voraussetzungen / Setup -->
+      <div class="mb-4 rounded-md border border-border bg-secondary/40 p-3 text-sm">
+        <p class="mb-2 font-medium">{$t('system.update_req_title')}</p>
+        <ul class="space-y-1.5 text-muted-foreground">
+          <li class="flex gap-2"><span class="text-foreground">①</span><span>{$t('system.update_req_owner')}</span></li>
+          <li class="flex gap-2"><span class="text-foreground">②</span><span>{$t('system.update_req_enable')} <code class="rounded bg-background px-1">ENABLE_SELF_UPDATE=true</code></span></li>
+          <li class="flex gap-2"><span class="text-foreground">③</span><span>{$t('system.update_req_restart')}</span></li>
+        </ul>
+        <p class="mt-2 text-xs text-muted-foreground/80">{$t('system.update_req_hint')}</p>
+        <pre class="mt-2 overflow-auto rounded bg-background p-2 text-xs leading-relaxed text-muted-foreground">// /etc/polkit-1/rules.d/49-dks-dashboard.rules
+polkit.addRule(function(action, subject) {'{'}
+  if (action.id == "org.freedesktop.systemd1.manage-units" &&
+      action.lookup("unit") == "dks-dashboard.service" &&
+      subject.user == "dks") {'{'} return polkit.Result.YES; {'}'}
+{'}'});</pre>
+      </div>
+
       <div class="flex flex-wrap items-center gap-3">
         <button
           type="button"
@@ -171,9 +214,17 @@
           on:click={askUpdate}>{updating ? '…' : $t('system.update_btn')}</button>
         {#if updatePhase === 'building'}<span class="text-sm text-amber-500">⟳ {$t('system.update_building')}</span>{/if}
         {#if updatePhase === 'restarting'}<span class="text-sm text-amber-500">⟳ {$t('system.update_restarting')}</span>{/if}
-        {#if updatePhase === 'done'}<span class="text-sm text-emerald-500">✓ {$t('system.update_done')}</span>{/if}
+        {#if updatePhase === 'done' && !restartManual}<span class="text-sm text-emerald-500">✓ {$t('system.update_done')}</span>{/if}
+        {#if updatePhase === 'done' && restartManual}<span class="text-sm text-amber-500">⚠ {$t('system.update_restart_manual')}</span>{/if}
         {#if updatePhase === 'error'}<span class="text-sm text-destructive">✗ {updateError}</span>{/if}
       </div>
+
+      {#if updatePhase === 'error'}
+        <p class="mt-2 text-sm text-destructive">{$t('system.update_failed')}: {updateError}</p>
+      {/if}
+      {#if updatePhase === 'done' && restartManual}
+        <p class="mt-2 text-sm text-amber-600 dark:text-amber-400">{$t('system.update_restart_manual_hint')} <code class="rounded bg-background px-1">systemctl restart dks-dashboard</code></p>
+      {/if}
 
       {#if updateLog}
         <pre class="mt-3 max-h-72 overflow-auto rounded-md border border-border bg-background p-3 text-xs leading-relaxed text-muted-foreground whitespace-pre-wrap">{updateLog}</pre>

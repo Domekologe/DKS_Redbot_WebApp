@@ -12,6 +12,10 @@
 #
 set -euo pipefail
 
+# Bei jedem Abbruch einen Fehler-Marker schreiben, damit das Web-Panel den
+# Fehlschlag sofort erkennt (statt in einen Timeout zu laufen).
+trap 'echo "===UPDATE_ERROR==="' ERR
+
 APP_DIR="${APP_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 SERVICE_USER="${SERVICE_USER:-dks}"
 SERVICE_NAME="${SERVICE_NAME:-dks-dashboard}"
@@ -69,11 +73,21 @@ echo "==> Dienst neu starten"
 if [ "$IS_ROOT" -eq 1 ]; then
   systemctl restart "${SERVICE_NAME}"
   systemctl --no-pager --full status "${SERVICE_NAME}" || true
+elif systemctl restart "${SERVICE_NAME}" 2>/dev/null; then
+  # Funktioniert ohne sudo, wenn eine polkit-Regel den User berechtigt.
+  echo "Dienst neu gestartet (via systemd/polkit)."
 elif sudo -n systemctl restart "${SERVICE_NAME}" 2>/dev/null; then
   echo "Dienst neu gestartet (via sudo)."
 else
+  echo "===RESTART_SKIPPED==="
   echo "!! Konnte den Dienst nicht selbst neu starten."
-  echo "!! Erlaube dem User '${CUR_USER}' den passwortlosen Neustart, z. B. in /etc/sudoers.d/dks:"
-  echo "!!   ${CUR_USER} ALL=(root) NOPASSWD: /usr/bin/systemctl restart ${SERVICE_NAME}"
-  echo "!! Oder starte manuell:  sudo systemctl restart ${SERVICE_NAME}"
+  echo "!! Dein sudo liegt auf einem 'nosuid'-Mount und kann nicht root werden;"
+  echo "!! eine sudoers-Regel hilft daher NICHT. Empfohlen: polkit-Regel anlegen."
+  echo "!! /etc/polkit-1/rules.d/49-${SERVICE_NAME}.rules:"
+  echo "!!   polkit.addRule(function(action, subject) {"
+  echo "!!     if (action.id == \"org.freedesktop.systemd1.manage-units\" &&"
+  echo "!!         action.lookup(\"unit\") == \"${SERVICE_NAME}.service\" &&"
+  echo "!!         subject.user == \"${CUR_USER}\") { return polkit.Result.YES; }"
+  echo "!!   });"
+  echo "!! Oder starte manuell:  systemctl restart ${SERVICE_NAME}"
 fi

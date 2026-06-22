@@ -8,6 +8,8 @@ import { env } from '$env/dynamic/private';
 
 const LOG_FILE = path.join(process.cwd(), '.update.log');
 const DONE_MARKER = '===UPDATE_DONE===';
+const ERROR_MARKER = '===UPDATE_ERROR===';
+const RESTART_SKIPPED_MARKER = '===RESTART_SKIPPED===';
 
 async function requireOwner(locals: App.Locals): Promise<string | null> {
   if (!locals.user) return 'unauthorized';
@@ -30,7 +32,12 @@ export const GET: RequestHandler = async ({ locals }) => {
   } catch {
     /* noch kein Log */
   }
-  return json({ log: log.slice(-6000), done: log.includes(DONE_MARKER) });
+  return json({
+    log: log.slice(-6000),
+    done: log.includes(DONE_MARKER),
+    failed: log.includes(ERROR_MARKER),
+    restartSkipped: log.includes(RESTART_SKIPPED_MARKER)
+  });
 };
 
 // Update starten (owner-only, opt-in).
