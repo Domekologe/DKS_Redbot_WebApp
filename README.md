@@ -5,10 +5,16 @@
 Modernes, modulares Web-Dashboard (Frontend + BFF) für den DKS Red-DiscordBot.
 Gegenstück zum Companion-Cog `webdashboard` (Repo `DKS_Redcogs`).
 
-- **Stack:** SvelteKit + TypeScript + TailwindCSS (shadcn-svelte-Tokens), adapter-node
+- **Repository:** https://github.com/Domekologe/DKS_Redbot_WebApp
+- **Stack:** SvelteKit + TypeScript + TailwindCSS (shadcn-svelte-Tokens), adapter-node, Chart.js
 - **Auth:** Discord OAuth2 (Login im SvelteKit-Server / BFF)
 - **Transport zum Bot:** JSON-RPC 2.0 über das Gateway des Cogs (HTTP + WebSocket)
-- **Sprachen:** Deutsch & Englisch (Umschalter oben rechts)
+- **Sprachen:** Deutsch & Englisch (Umschalter oben rechts, vollständig übersetzte UI)
+
+```bash
+git clone https://github.com/Domekologe/DKS_Redbot_WebApp.git
+cd DKS_Redbot_WebApp
+```
 
 Architektur-Details: `DKS_Redcogs/webdashboard/ARCHITECTURE.md`.
 
@@ -16,12 +22,20 @@ Architektur-Details: `DKS_Redcogs/webdashboard/ARCHITECTURE.md`.
 
 - Öffentliche Landing/Übersicht + **Befehlsliste** (ohne Login).
 - Nach Login: **Server-Übersicht**, Bot-Einstellungen pro Gilde, eingebettete
-  **Cog-Widgets & -Panels** (aufklappbar).
-- **Cog-Verwaltung** (`/cogs`): Cogs laden/entladen, **Downloader** (Repos & Cogs),
-  **Slash** (gruppiert nach Cog, einzeln/Cog-weit an/aus, Sync).
+  **Cog-Widgets, -Panels & -Listen** – pro Cog in **einem Modul mit Tabs**
+  (Anlegen/Ansehen/Bearbeiten/Löschen, z. B. ReactionRoles, WoW-Profile).
+- **Cog-Verwaltung** (`/cogs`): Cogs laden/entladen/**neu laden**, **Downloader**
+  (Repos aufklappbar, **Update-Check + „Aktualisieren" pro Cog**), **Slash** (nach Cog
+  gruppiert, einzeln/Cog-weit an/aus inkl. **deaktivierter** Befehle, Sync),
+  **Global** (globale Owner-Panels einzelner Cogs als Tabs).
+- **Statistiken** (`/stats`): Statbot-artige Server-Analysen (Übersicht, Nachrichten,
+  Voice, Status, Einladungen, Aktivität, Member-/Channel-Drilldown) mit Server-Dropdown,
+  Zeit-Filter und Chart.js-Diagrammen (Serien ein-/ausblendbar). Benötigt den Cog
+  **`web_serverstats`** (sammelt die Daten).
 - **Einstellungen** (`/settings`): globale Bot-Settings, Branding, Lock/Refresh,
   globale Modul-Panels.
-- **Custom Pages** (`/pages`) mit WYSIWYG-Editor.
+- **Custom Pages** (`/pages`): **Markdown**-Editor mit Vorschau, **Public/Private**
+  je Seite (private nur eingeloggt), erscheinen sofort in der Navigation.
 
 ## Entwicklung
 
@@ -129,17 +143,20 @@ Das macht man auf der **Bot-Seite** (Python), nicht hier. Anleitung + Vorlage:
 src/
   hooks.server.ts            Session aus Cookie + Epoch-Check
   lib/server/                NUR serverseitig (Secrets!): env, session, auth, rpc
-  lib/components/            Widget, PanelForm, ui/
-  lib/i18n/                  de + en
+  lib/components/            Widget, PanelForm, ListManager, ModuleTabs, ui/
+  lib/components/charts/     Chart.js-Wrapper (Line/Bar/Donut/SeriesToggle)
+  lib/i18n/                  de + en (vollständige UI-Übersetzung)
+  lib/markdown.ts            sicherer Markdown→HTML-Renderer (Custom Pages)
   routes/
     +page.svelte             Landing/Übersicht (öffentlich)
     commands/                öffentliche Befehlsliste
-    guilds/ [id]/ settings/  Server-Übersicht + Bot-Einstellungen
-    cogs/                    Cog-Verwaltung (Cogs/Slash/Downloader)
+    guilds/ [id]/ settings/  Server-Übersicht + Bot-Einstellungen (Module mit Tabs)
+    cogs/                    Cog-Verwaltung (Cogs/Slash/Downloader/Global)
+    stats/                   Server-Statistiken (Cog web_serverstats)
     settings/                globale Settings + Branding + globale Panels
-    pages/  p/[slug]/        Custom Pages (Editor + öffentliche Ansicht)
+    pages/  p/[slug]/        Custom Pages (Markdown-Editor + öffentliche Ansicht)
     auth/… logout            OAuth2-Flow
-    api/…                    BFF-Endpunkte (rufen RPC auf)
+    api/…                    BFF-Endpunkte (rufen RPC auf, inkl. /api/stats)
 ```
 
 ---
@@ -149,23 +166,36 @@ src/
 A modern, modular web dashboard (frontend + BFF) for the DKS Red-DiscordBot.
 Counterpart to the companion cog `webdashboard` (repo `DKS_Redcogs`).
 
-- **Stack:** SvelteKit + TypeScript + TailwindCSS (shadcn-svelte tokens), adapter-node
+- **Repository:** https://github.com/Domekologe/DKS_Redbot_WebApp
+- **Stack:** SvelteKit + TypeScript + TailwindCSS (shadcn-svelte tokens), adapter-node, Chart.js
 - **Auth:** Discord OAuth2 (login in the SvelteKit server / BFF)
 - **Transport to the bot:** JSON-RPC 2.0 via the cog's gateway (HTTP + WebSocket)
-- **Languages:** German & English (switch in the top-right)
+- **Languages:** German & English (switch in the top-right, fully translated UI)
+
+```bash
+git clone https://github.com/Domekologe/DKS_Redbot_WebApp.git
+cd DKS_Redbot_WebApp
+```
 
 Architecture details: `DKS_Redcogs/webdashboard/ARCHITECTURE.md`.
 
 ## Features
 
 - Public landing/overview + **command list** (no login).
-- After login: **server overview**, per-guild bot settings, embedded **cog widgets &
-  panels** (collapsible).
-- **Cog management** (`/cogs`): load/unload cogs, **Downloader** (repos & cogs),
-  **Slash** (grouped by cog, per-command/per-cog toggle, sync).
+- After login: **server overview**, per-guild bot settings, embedded **cog widgets,
+  panels & lists** – one **module-with-tabs** per cog (create/view/edit/delete, e.g.
+  reaction roles, WoW profiles).
+- **Cog management** (`/cogs`): load/unload/**reload** cogs, **Downloader** (collapsible
+  repos, **update check + per-cog "Update"**), **Slash** (grouped by cog, per-command/
+  per-cog toggle incl. **disabled** commands, sync), **Global** (per-cog owner panels as tabs).
+- **Statistics** (`/stats`): Statbot-style server analytics (overview, messages, voice,
+  status, invites, activity, member/channel drilldown) with a server dropdown, time filter
+  and Chart.js charts (toggleable series). Requires the **`web_serverstats`** cog (collects
+  the data).
 - **Settings** (`/settings`): global bot settings, branding, lock/refresh, global module
   panels.
-- **Custom Pages** (`/pages`) with a WYSIWYG editor.
+- **Custom Pages** (`/pages`): **Markdown** editor with preview, **public/private** per
+  page (private = logged-in only), appear in the navigation immediately.
 
 ## Development
 
