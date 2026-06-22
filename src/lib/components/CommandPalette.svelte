@@ -71,14 +71,16 @@
 <svelte:window on:keydown={onKey} />
 
 {#if open}
+  <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
   <div
     class="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 pt-[15vh]"
-    on:click={() => (open = false)}
+    on:click={(e) => {
+      if (e.target === e.currentTarget) open = false;
+    }}
     role="presentation"
   >
     <div
       class="w-full max-w-lg overflow-hidden rounded-lg border border-border bg-card shadow-xl"
-      on:click|stopPropagation
       role="dialog"
       aria-modal="true"
     >
