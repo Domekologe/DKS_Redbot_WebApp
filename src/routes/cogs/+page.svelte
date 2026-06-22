@@ -98,7 +98,35 @@
   const removeRepo = (name: string) => post('/api/downloader', { action: 'repo_remove', name }, 'repo_rm:' + name);
   const installCog = (repo: string, cog: string) => post('/api/downloader', { action: 'cog_install', repo, cog }, 'inst:' + cog);
   const uninstallCog = (cog: string) => post('/api/downloader', { action: 'cog_uninstall', cog }, 'uninst:' + cog);
-  const updateCog = (cog: string) => post('/api/downloader', { action: 'cog_update', cog }, 'upd:' + cog);
+  // Update führt im Gateway automatisch Reload + Slash-Sync aus; wir melden das Ergebnis.
+  async function updateCog(cog: string) {
+    busy = 'upd:' + cog;
+    msg = '';
+    err = '';
+    try {
+      const res = await fetch('/api/downloader', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'cog_update', cog })
+      });
+      const j = await res.json();
+      if (j.error) {
+        err = j.error;
+      } else {
+        const parts = [$t('cogs.updated')];
+        if (j.self_skipped) parts.push($t('cogs.reload_manual'));
+        else if (j.reloaded) parts.push($t('cogs.reloaded'));
+        else if (j.reload_error) parts.push($t('cogs.reload_failed') + ': ' + j.reload_error);
+        if (j.synced != null) parts.push($t('cogs.synced', { n: j.synced }));
+        msg = parts.join(' · ');
+        await invalidateAll();
+      }
+    } catch (e) {
+      err = e instanceof Error ? e.message : 'Fehler';
+    } finally {
+      busy = '';
+    }
+  }
 
   // Aufklappbare Repos (Standard: zu, wenn mehr als 1 Repo).
   let openRepos: Record<string, boolean> = {};

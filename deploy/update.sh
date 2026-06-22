@@ -29,6 +29,9 @@ if ! sudo -u "$SERVICE_USER" env "${NPM_ENV[@]}" npm ci; then
 fi
 sudo -u "$SERVICE_USER" env "${NPM_ENV[@]}" npm run build
 
+# Marker für das Web-Panel: Build erfolgreich abgeschlossen (vor dem Neustart).
+echo "===UPDATE_DONE==="
+
 echo "==> Dienst neu starten"
 systemctl restart "${SERVICE_NAME}"
 systemctl --no-pager --full status "${SERVICE_NAME}" || true

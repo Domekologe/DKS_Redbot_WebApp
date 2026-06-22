@@ -6,9 +6,87 @@
 
   export let data: { isOwner: boolean; info: SystemInfo | null; online: boolean };
 
-  let updating = false;
-  let updateMsg = '';
   let refreshing = false;
+
+  // Update-Status
+  let showConfirm = false;
+  let updating = false;
+  let updateLog = '';
+  let updatePhase: '' | 'building' | 'restarting' | 'done' | 'error' = '';
+  let updateError = '';
+
+  function askUpdate() {
+    showConfirm = true;
+  }
+
+  async function startUpdate() {
+    showConfirm = false;
+    updating = true;
+    updateLog = '';
+    updateError = '';
+    updatePhase = 'building';
+    try {
+      const res = await fetch('/api/update', { method: 'POST' });
+      const j = await res.json();
+      if (j.error) {
+        updatePhase = 'error';
+        updateError = j.error;
+        updating = false;
+        return;
+      }
+    } catch (e) {
+      updatePhase = 'error';
+      updateError = e instanceof Error ? e.message : 'Fehler';
+      updating = false;
+      return;
+    }
+    await pollLog();
+  }
+
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  async function pollLog() {
+    // Phase 1: Build läuft – Log streamen (max ~6 Min).
+    for (let i = 0; i < 180 && updatePhase === 'building'; i++) {
+      await sleep(2000);
+      try {
+        const r = await fetch('/api/update', { cache: 'no-store' });
+        const j = await r.json();
+        if (j.error) {
+          updatePhase = 'error';
+          updateError = j.error;
+          updating = false;
+          return;
+        }
+        updateLog = j.log ?? '';
+        if (j.done) {
+          updatePhase = 'restarting';
+        }
+      } catch {
+        // Verbindung weg → Dienst startet bereits neu.
+        updatePhase = 'restarting';
+      }
+    }
+    // Phase 2: auf Neustart warten (Server muss erst weg sein, dann wieder da).
+    let wasDown = false;
+    for (let i = 0; i < 60; i++) {
+      await sleep(2000);
+      try {
+        const r = await fetch('/api/update', { cache: 'no-store' });
+        if (r.ok && wasDown) {
+          updatePhase = 'done';
+          updating = false;
+          await sleep(1200);
+          location.reload();
+          return;
+        }
+      } catch {
+        wasDown = true;
+      }
+    }
+    updatePhase = 'done';
+    updating = false;
+  }
 
   function uptime(s: number | null): string {
     if (s == null) return '—';
@@ -26,21 +104,6 @@
       await invalidateAll();
     } finally {
       refreshing = false;
-    }
-  }
-
-  async function runUpdate() {
-    if (!confirm($t('system.update_confirm'))) return;
-    updating = true;
-    updateMsg = '';
-    try {
-      const res = await fetch('/api/update', { method: 'POST' });
-      const j = await res.json();
-      updateMsg = j.error ? '✗ ' + j.error : '✓ ' + (j.message ?? $t('system.update_started'));
-    } catch (e) {
-      updateMsg = '✗ ' + (e instanceof Error ? e.message : 'Fehler');
-    } finally {
-      updating = false;
     }
   }
 
@@ -105,9 +168,37 @@
           type="button"
           class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
           disabled={updating}
-          on:click={runUpdate}>{updating ? '…' : $t('system.update_btn')}</button>
-        {#if updateMsg}<span class="text-sm text-muted-foreground">{updateMsg}</span>{/if}
+          on:click={askUpdate}>{updating ? '…' : $t('system.update_btn')}</button>
+        {#if updatePhase === 'building'}<span class="text-sm text-amber-500">⟳ {$t('system.update_building')}</span>{/if}
+        {#if updatePhase === 'restarting'}<span class="text-sm text-amber-500">⟳ {$t('system.update_restarting')}</span>{/if}
+        {#if updatePhase === 'done'}<span class="text-sm text-emerald-500">✓ {$t('system.update_done')}</span>{/if}
+        {#if updatePhase === 'error'}<span class="text-sm text-destructive">✗ {updateError}</span>{/if}
       </div>
+
+      {#if updateLog}
+        <pre class="mt-3 max-h-72 overflow-auto rounded-md border border-border bg-background p-3 text-xs leading-relaxed text-muted-foreground whitespace-pre-wrap">{updateLog}</pre>
+      {/if}
     </Card>
   {/if}
 </div>
+
+<!-- Bestätigungs-Modal (ersetzt window.confirm) -->
+{#if showConfirm}
+  <!-- svelte-ignore a11y-click-events-have-key-events a11y-no-static-element-interactions -->
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+    role="presentation"
+    on:click={(e) => {
+      if (e.target === e.currentTarget) showConfirm = false;
+    }}
+  >
+    <div class="w-full max-w-md rounded-lg border border-border bg-card p-5 shadow-xl" role="dialog" aria-modal="true">
+      <h3 class="mb-2 text-base font-semibold">{$t('system.update_title')}</h3>
+      <p class="mb-4 text-sm text-muted-foreground">{$t('system.update_confirm')}</p>
+      <div class="flex justify-end gap-2">
+        <button type="button" class="rounded-md border border-border px-4 py-2 text-sm hover:bg-secondary" on:click={() => (showConfirm = false)}>{$t('common.cancel')}</button>
+        <button type="button" class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground" on:click={startUpdate}>{$t('system.update_btn')}</button>
+      </div>
+    </div>
+  </div>
+{/if}
