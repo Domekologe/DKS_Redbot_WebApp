@@ -1,0 +1,156 @@
+<script lang="ts">
+  import { t } from '$lib/i18n';
+  export let data: {
+    commands: {
+      bot: { name: string | null; avatar: string | null } | null;
+      prefix: Array<{ name: string; description: string; cog: string }>;
+      slash: Array<{ name: string; description: string; cog: string }>;
+      counts: { prefix: number; slash: number };
+    };
+    online: boolean;
+    user: { username: string } | null;
+  };
+
+  type Cmd = { name: string; description: string; cog: string; slash: boolean; prefix: boolean };
+
+  let selectedModule: string | null = null; // null = alle
+  let query = '';
+  let typeFilter: 'all' | 'slash' | 'prefix_only' = 'all';
+
+  // Prefix- und Slash-Listen zu einem Befehl je Name zusammenführen.
+  function merge(c: typeof data.commands): Cmd[] {
+    if (!c) return [];
+    const map = new Map<string, Cmd>();
+    for (const p of c.prefix ?? [])
+      map.set(p.name, { name: p.name, description: p.description, cog: p.cog || '—', slash: false, prefix: true });
+    for (const s of c.slash ?? []) {
+      const e = map.get(s.name);
+      if (e) {
+        e.slash = true;
+        if (!e.description) e.description = s.description;
+        if (e.cog === '—') e.cog = s.cog;
+      } else {
+        map.set(s.name, { name: s.name, description: s.description, cog: s.cog || '—', slash: true, prefix: false });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  $: c = data.commands ?? { bot: null, prefix: [], slash: [], counts: { prefix: 0, slash: 0 } };
+  $: merged = merge(c);
+  $: modules = Array.from(new Set(merged.map((c) => c.cog))).sort((a, b) => a.localeCompare(b));
+  $: moduleCount = (m: string) => merged.filter((c) => c.cog === m).length;
+
+  $: filtered = merged.filter((c) => {
+    if (selectedModule && c.cog !== selectedModule) return false;
+    if (typeFilter === 'slash' && !c.slash) return false;
+    if (typeFilter === 'prefix_only' && !(c.prefix && !c.slash)) return false;
+    if (query) {
+      const q = query.toLowerCase();
+      if (!c.name.toLowerCase().includes(q) && !(c.description ?? '').toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+
+  // nach Modul gruppieren (für die Anzeige)
+  $: groups = filtered.reduce((acc: Record<string, Cmd[]>, c) => {
+    (acc[c.cog] ??= []).push(c);
+    return acc;
+  }, {});
+  $: groupNames = Object.keys(groups).sort((a, b) => a.localeCompare(b));
+
+  $: totals = {
+    all: merged.length,
+    slash: merged.filter((c) => c.slash).length,
+    prefixOnly: merged.filter((c) => c.prefix && !c.slash).length
+  };
+</script>
+
+<div class="mx-auto max-w-5xl space-y-6 py-2">
+  <!-- Kopf -->
+  <header class="flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      {#if c.bot?.avatar}
+        <img src={c.bot.avatar} alt="" class="h-10 w-10 rounded-full" />
+      {/if}
+      <div>
+        <h1 class="text-xl font-semibold">{$t('commands.title', { bot: c.bot?.name ?? 'Bot' })}</h1>
+        <p class="text-sm text-muted-foreground">
+          {$t('commands.summary', { all: totals.all, slash: totals.slash, prefixOnly: totals.prefixOnly })}
+        </p>
+      </div>
+    </div>
+    {#if data.user}
+      <a href="/" class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">{$t('commands.to_dashboard')}</a>
+    {:else}
+      <a href="/auth/login" class="rounded-md bg-[#5865F2] px-4 py-2 text-sm font-medium text-white hover:opacity-90">{$t('login.with_discord')}</a>
+    {/if}
+  </header>
+
+  {#if !data.online}
+    <div class="rounded-lg border border-destructive/50 p-4 text-sm text-destructive">{$t('commands.bot_offline')}</div>
+  {/if}
+
+  <div class="flex flex-col gap-6 md:flex-row">
+    <!-- Modul-Menü -->
+    <aside class="space-y-1 md:w-56 md:shrink-0">
+      <p class="px-2 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">{$t('commands.modules')}</p>
+      <button
+        class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm hover:bg-secondary {selectedModule === null ? 'bg-secondary font-medium' : ''}"
+        on:click={() => (selectedModule = null)}
+      >
+        <span>{$t('commands.all_modules')}</span><span class="text-muted-foreground">{merged.length}</span>
+      </button>
+      {#each modules as m (m)}
+        <button
+          class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm hover:bg-secondary {selectedModule === m ? 'bg-secondary font-medium' : ''}"
+          on:click={() => (selectedModule = m)}
+        >
+          <span class="truncate">{m}</span><span class="ml-2 shrink-0 text-muted-foreground">{moduleCount(m)}</span>
+        </button>
+      {/each}
+    </aside>
+
+    <!-- Befehlsliste -->
+    <div class="min-w-0 flex-1 space-y-4">
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="inline-flex rounded-md border border-border p-0.5 text-sm">
+          <button class="rounded px-3 py-1.5 {typeFilter === 'all' ? 'bg-secondary font-medium' : 'text-muted-foreground'}" on:click={() => (typeFilter = 'all')}>{$t('commands.filter_all')}</button>
+          <button class="rounded px-3 py-1.5 {typeFilter === 'slash' ? 'bg-secondary font-medium' : 'text-muted-foreground'}" on:click={() => (typeFilter = 'slash')}>{$t('commands.filter_slash')}</button>
+          <button class="rounded px-3 py-1.5 {typeFilter === 'prefix_only' ? 'bg-secondary font-medium' : 'text-muted-foreground'}" on:click={() => (typeFilter = 'prefix_only')}>{$t('commands.filter_prefix_only')}</button>
+        </div>
+        <input type="text" bind:value={query} placeholder={$t('common.search')} class="flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm" />
+      </div>
+
+      {#if filtered.length === 0}
+        <p class="text-sm text-muted-foreground">{$t('commands.none_found')}</p>
+      {:else}
+        <div class="space-y-6">
+          {#each groupNames as cog (cog)}
+            <section>
+              <h2 class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">{cog}</h2>
+              <div class="overflow-hidden rounded-lg border border-border">
+                {#each groups[cog] as cmd (cmd.name)}
+                  <div class="flex items-start justify-between gap-4 border-b border-border/60 px-4 py-2.5 last:border-0">
+                    <div class="min-w-0">
+                      <code class="break-all text-sm text-primary">{cmd.slash ? '/' : ''}{cmd.name}</code>
+                      <p class="mt-0.5 break-words text-sm text-muted-foreground">{cmd.description || '—'}</p>
+                    </div>
+                    <div class="flex shrink-0 gap-1">
+                      {#if cmd.slash}
+                        <span class="rounded bg-primary/15 px-2 py-0.5 text-xs text-primary">{$t('commands.badge_slash')}</span>
+                      {/if}
+                      {#if cmd.prefix}
+                        <span class="rounded bg-secondary px-2 py-0.5 text-xs text-muted-foreground">{$t('commands.badge_prefix')}</span>
+                      {/if}
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            </section>
+          {/each}
+        </div>
+      {/if}
+    </div>
+  </div>
+</div>
