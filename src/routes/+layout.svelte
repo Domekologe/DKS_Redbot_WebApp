@@ -1,6 +1,7 @@
 <script lang="ts">
   import '../app.css';
   import { onMount } from 'svelte';
+  import { invalidateAll } from '$app/navigation';
   import { setLocale, t, locale } from '$lib/i18n';
   import CommandPalette from '$lib/components/CommandPalette.svelte';
   export let data: {
@@ -64,8 +65,11 @@
     if (typeof localStorage !== 'undefined') localStorage.setItem('theme', theme);
   }
 
-  function onLocaleChange(e: Event) {
+  async function onLocaleChange(e: Event) {
     setLocale((e.target as HTMLSelectElement).value);
+    // Server-Loads (z. B. das Cog-Manifest) neu ausführen, damit Modul-Namen/
+    // -Beschreibungen in der neuen Sprache geliefert werden.
+    await invalidateAll();
   }
 
   // Öffentliche Navigation (immer sichtbar); der Rest nur eingeloggt.

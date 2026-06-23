@@ -19,4 +19,9 @@ export const t = derived(locale, ($locale) => {
 export function setLocale(l: string) {
   locale.set(l);
   if (typeof localStorage !== 'undefined') localStorage.setItem('locale', l);
+  // Also persist as a cookie so server-side loads (e.g. the cog manifest) can
+  // localize module names/descriptions to the chosen UI language.
+  if (typeof document !== 'undefined') {
+    document.cookie = `locale=${encodeURIComponent(l)};path=/;max-age=31536000;samesite=lax`;
+  }
 }

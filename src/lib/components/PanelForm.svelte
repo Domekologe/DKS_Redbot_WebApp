@@ -1,7 +1,7 @@
 <script lang="ts">
   import Card from './ui/Card.svelte';
   import { onMount, tick, createEventDispatcher } from 'svelte';
-  import { t } from '$lib/i18n';
+  import { t, locale } from '$lib/i18n';
 
   const dispatch = createEventDispatcher();
 
@@ -12,7 +12,7 @@
   let saving = false;
   let message: string | null = null;
   let error: string | null = null;
-  let schema: { fields: any[]; submit_label?: string } | null = null;
+  let schema: { fields: any[]; submit_label?: string; description?: string | null } | null = null;
   let values: Record<string, any> = {};
 
   // Refs auf die Textareas (für Variablen-Einfügung an Cursor-Position).
@@ -22,7 +22,7 @@
     const res = await fetch('/api/panel', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ op: 'schema', key: contribution.key, guildId })
+      body: JSON.stringify({ op: 'schema', key: contribution.key, guildId, locale: $locale })
     });
     const json = await res.json();
     if (json.error) { error = json.error; loading = false; return; }
@@ -93,11 +93,18 @@
   }
 
   onMount(loadSchema);
+
+  // Bei Sprachwechsel das Schema neu laden (Panel-Beschreibung ist lokalisiert).
+  let prevLocale = '';
+  $: if ($locale && $locale !== prevLocale) {
+    if (prevLocale) loadSchema();
+    prevLocale = $locale;
+  }
 </script>
 
 <Card class="p-5">
   <h3 class="mb-1 text-base font-semibold">{contribution.name}</h3>
-  {#if contribution.description}<p class="mb-4 text-sm text-muted-foreground">{contribution.description}</p>{/if}
+  {#if schema?.description ?? contribution.description}<p class="mb-4 text-sm text-muted-foreground">{schema?.description ?? contribution.description}</p>{/if}
 
   {#if loading}
     <div class="h-24 animate-pulse rounded bg-muted"></div>

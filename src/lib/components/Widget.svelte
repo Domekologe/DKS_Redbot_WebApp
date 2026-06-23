@@ -1,6 +1,7 @@
 <script lang="ts">
   import Card from './ui/Card.svelte';
   import { onMount } from 'svelte';
+  import { locale } from '$lib/i18n';
 
   // Manifest-Eintrag eines Widgets
   export let contribution: {
@@ -22,7 +23,7 @@
       const res = await fetch('/api/widget', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ key: contribution.key, guildId })
+        body: JSON.stringify({ key: contribution.key, guildId, locale: $locale })
       });
       const json = await res.json();
       if (json.error) throw new Error(json.error);
@@ -40,6 +41,13 @@
     if (contribution.refresh) timer = setInterval(load, contribution.refresh * 1000);
     return () => timer && clearInterval(timer);
   });
+
+  // Bei Sprachwechsel neu laden (Widget-Inhalte können lokalisiert sein).
+  let prevLocale = '';
+  $: if ($locale && $locale !== prevLocale) {
+    if (prevLocale) load();
+    prevLocale = $locale;
+  }
 
   const colSpan: Record<string, string> = {
     sm: 'md:col-span-1',

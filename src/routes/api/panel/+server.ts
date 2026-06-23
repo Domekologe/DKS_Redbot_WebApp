@@ -4,8 +4,8 @@ import { rpc, authFromUser, RpcError } from '$lib/server/rpc';
 
 export const POST: RequestHandler = async ({ locals, request }) => {
   if (!locals.user) return json({ error: 'unauthorized' }, { status: 401 });
-  const { op, key, guildId, data } = await request.json();
-  const auth = authFromUser(locals.user, guildId);
+  const { op, key, guildId, data, locale } = await request.json();
+  const auth = authFromUser(locals.user, guildId, locale);
   try {
     if (op === 'schema') {
       return json(await rpc('panel.schema', { key }, auth));
