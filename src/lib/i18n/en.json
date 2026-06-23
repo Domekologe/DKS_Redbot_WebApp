@@ -165,6 +165,7 @@
   "cogs.updates_available": "Updates available",
   "cogs.update_badge": "Update",
   "cogs.update": "Update",
+  "cogs.update_queued": "queued …",
   "cogs.updated": "Updated",
   "cogs.reloaded": "reloaded",
   "cogs.reload_manual": "please reload manually",

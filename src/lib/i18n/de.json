@@ -165,6 +165,7 @@
   "cogs.updates_available": "Updates verfügbar",
   "cogs.update_badge": "Update",
   "cogs.update": "Aktualisieren",
+  "cogs.update_queued": "wartet …",
   "cogs.updated": "Aktualisiert",
   "cogs.reloaded": "neu geladen",
   "cogs.reload_manual": "bitte manuell neu laden",

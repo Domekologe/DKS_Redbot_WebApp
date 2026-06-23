@@ -109,9 +109,50 @@
   const removeRepo = (name: string) => post('/api/downloader', { action: 'repo_remove', name }, 'repo_rm:' + name);
   const installCog = (repo: string, cog: string) => post('/api/downloader', { action: 'cog_install', repo, cog }, 'inst:' + cog);
   const uninstallCog = (cog: string) => post('/api/downloader', { action: 'cog_uninstall', cog }, 'uninst:' + cog);
+  // Markiert einen Cog lokal sofort als „kein Update mehr" (optimistisches UI),
+  // damit die Ansicht nicht erst nach F5 nachzieht.
+  function clearUpdateFlag(cog: string) {
+    for (const repo of data.repos ?? []) {
+      for (const ic of repo.installed ?? []) {
+        if (ic.name === cog) ic.update_available = false;
+      }
+    }
+    data = data; // Reaktivität triggern
+  }
+
+  // Update-Warteschlange: Mehrere Klicks werden gesammelt und NACHEINANDER
+  // ausgeführt. So laufen nie zwei Downloader-Operationen / Slash-Syncs parallel
+  // (der Downloader ist dafür nicht ausgelegt). Das Gateway sichert das zusätzlich
+  // mit einem Lock ab. Schnelldurchklicken ist damit unkritisch.
+  let updateQueue: string[] = [];
+  let updatingNow = '';
+  let updatePending = new Set<string>();
+  $: updatesRunning = updatingNow !== '' || updateQueue.length > 0;
+
+  function enqueueUpdate(cog: string) {
+    if (updatePending.has(cog)) return; // läuft schon oder steht in der Schlange
+    updatePending = new Set(updatePending).add(cog);
+    updateQueue = [...updateQueue, cog];
+    if (!updatingNow) processQueue();
+  }
+
+  async function processQueue() {
+    while (updateQueue.length) {
+      const cog = updateQueue[0];
+      updateQueue = updateQueue.slice(1);
+      updatingNow = cog;
+      await runUpdate(cog);
+      updatingNow = '';
+      const s = new Set(updatePending);
+      s.delete(cog);
+      updatePending = s;
+    }
+    // Einmal am Ende der Schlange echten Stand nachladen (Hintergrund).
+    invalidateAll();
+  }
+
   // Update führt im Gateway automatisch Reload + Slash-Sync aus; wir melden das Ergebnis.
-  async function updateCog(cog: string) {
-    busy = 'upd:' + cog;
+  async function runUpdate(cog: string) {
     msg = '';
     err = '';
     try {
@@ -122,20 +163,18 @@
       });
       const j = await res.json();
       if (j.error) {
-        err = j.error;
+        err = `${cog}: ${j.error}`;
       } else {
-        const parts = [$t('cogs.updated')];
+        const parts = [`${cog}: ${$t('cogs.updated')}`];
         if (j.self_skipped) parts.push($t('cogs.reload_manual'));
         else if (j.reloaded) parts.push($t('cogs.reloaded'));
         else if (j.reload_error) parts.push($t('cogs.reload_failed') + ': ' + j.reload_error);
         if (j.synced != null) parts.push($t('cogs.synced', { n: j.synced }));
         msg = parts.join(' · ');
-        await invalidateAll();
+        clearUpdateFlag(cog); // optimistisch: Badge/Button sofort weg
       }
     } catch (e) {
-      err = e instanceof Error ? e.message : 'Fehler';
-    } finally {
-      busy = '';
+      err = `${cog}: ` + (e instanceof Error ? e.message : 'Fehler');
     }
   }
 
@@ -332,9 +371,9 @@
                           <button
                             type="button"
                             class="rounded-md border border-amber-500/50 px-2 py-1 text-xs text-amber-500 disabled:opacity-40"
-                            disabled={busy === 'upd:' + c.name}
-                            on:click={() => updateCog(c.name)}
-                          >{busy === 'upd:' + c.name ? '…' : $t('cogs.update')}</button>
+                            disabled={updatePending.has(c.name)}
+                            on:click={() => enqueueUpdate(c.name)}
+                          >{updatingNow === c.name ? '…' : updatePending.has(c.name) ? $t('cogs.update_queued') : $t('cogs.update')}</button>
                         {/if}
                         {#if c.installed}
                           <button
