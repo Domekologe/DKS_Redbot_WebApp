@@ -5,6 +5,10 @@
 Modernes, modulares Web-Dashboard (Frontend + BFF) für den DKS Red-DiscordBot.
 Gegenstück zum Companion-Cog `webdashboard` (Repo `DKS_Redcogs`).
 
+![Screenshot: DKS Redbot WebApp – Dashboard-Startseite](assets/readme-dashboard-home.png)
+
+> 📖 **Vollständige Doku:** [DKS_Redbot_WebApp Wiki](https://github.com/Domekologe/DKS_Redbot_WebApp/wiki) (Deutsch & English)
+
 - **Repository:** https://github.com/Domekologe/DKS_Redbot_WebApp
 - **Stack:** SvelteKit + TypeScript + TailwindCSS (shadcn-svelte-Tokens), adapter-node, Chart.js
 - **Auth:** Discord OAuth2 (Login im SvelteKit-Server / BFF)
@@ -32,6 +36,9 @@ Architektur-Details: `DKS_Redcogs/webdashboard/ARCHITECTURE.md`.
   Voice, Status, Einladungen, Aktivität, Member-/Channel-Drilldown) mit Server-Dropdown,
   Zeit-Filter und Chart.js-Diagrammen (Serien ein-/ausblendbar). Benötigt den Cog
   **`web_serverstats`** (sammelt die Daten).
+
+![Screenshot: Statistik-Seite mit Chart.js-Diagrammen](assets/readme-stats.png)
+![Screenshot: Cog-Verwaltung (Cogs/Slash/Downloader)](assets/readme-cogs.png)
 - **Einstellungen** (`/settings`): globale Bot-Settings, Branding, Lock/Refresh,
   globale Modul-Panels.
 - **Custom Pages** (`/pages`): **Markdown**-Editor mit Vorschau, **Public/Private**
@@ -165,6 +172,10 @@ src/
 
 A modern, modular web dashboard (frontend + BFF) for the DKS Red-DiscordBot.
 Counterpart to the companion cog `webdashboard` (repo `DKS_Redcogs`).
+
+![Screenshot: DKS Redbot WebApp dashboard landing page](assets/readme-dashboard-home.png)
+
+> 📖 **Full documentation:** [DKS_Redbot_WebApp Wiki](https://github.com/Domekologe/DKS_Redbot_WebApp/wiki) (English & Deutsch)
 
 - **Repository:** https://github.com/Domekologe/DKS_Redbot_WebApp
 - **Stack:** SvelteKit + TypeScript + TailwindCSS (shadcn-svelte tokens), adapter-node, Chart.js
