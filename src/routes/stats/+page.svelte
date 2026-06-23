@@ -810,7 +810,12 @@
                 </div>
                 <span class="text-xs text-muted-foreground">{$t('stats.heatmap_utc_hint')}</span>
               </div>
-              <Heatmap grid={result.grid ?? []} peak={result.peak ?? 0} metric={result.metric ?? heatmapMetric} />
+              <Heatmap
+                grid={result.grid ?? []}
+                peak={result.peak ?? 0}
+                metric={result.metric ?? heatmapMetric}
+                unit={(result.metric ?? heatmapMetric) === 'voice' ? $t('stats.label_hours') : $t('stats.label_messages')}
+              />
             </Card>
 
           <!-- PEAKS ──────────────────────────────────────────────── -->
