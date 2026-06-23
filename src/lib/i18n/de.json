@@ -166,6 +166,8 @@
   "cogs.update_badge": "Update",
   "cogs.update": "Aktualisieren",
   "cogs.update_queued": "wartet …",
+  "cogs.slash_syncing": "Slash-Sync läuft …",
+  "cogs.slash_synced": "Slash synchronisiert",
   "cogs.updated": "Aktualisiert",
   "cogs.reloaded": "neu geladen",
   "cogs.reload_manual": "bitte manuell neu laden",

@@ -127,7 +127,8 @@
   let updateQueue: string[] = [];
   let updatingNow = '';
   let updatePending = new Set<string>();
-  $: updatesRunning = updatingNow !== '' || updateQueue.length > 0;
+  let syncingSlash = false;
+  $: updatesRunning = updatingNow !== '' || updateQueue.length > 0 || syncingSlash;
 
   function enqueueUpdate(cog: string) {
     if (updatePending.has(cog)) return; // läuft schon oder steht in der Schlange
@@ -137,23 +138,41 @@
   }
 
   async function processQueue() {
+    let anyOk = false;
     while (updateQueue.length) {
       const cog = updateQueue[0];
       updateQueue = updateQueue.slice(1);
       updatingNow = cog;
-      await runUpdate(cog);
+      const ok = await runUpdate(cog);
+      anyOk = anyOk || ok;
       updatingNow = '';
       const s = new Set(updatePending);
       s.delete(cog);
       updatePending = s;
     }
-    // Einmal am Ende der Schlange echten Stand nachladen (Hintergrund).
+    // Slash-Commands NUR EINMAL am Ende synchronisieren (nicht pro Cog – das ist
+    // langsam und von Discord rate-limitet). Danach echten Stand nachladen.
+    if (anyOk) {
+      syncingSlash = true;
+      try {
+        const res = await fetch('/api/slash', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ action: 'sync' })
+        });
+        const j = await res.json();
+        if (!j.error) msg = (msg ? msg + ' · ' : '') + $t('cogs.slash_synced');
+      } catch {
+        /* Sync best-effort */
+      }
+      syncingSlash = false;
+    }
     invalidateAll();
   }
 
-  // Update führt im Gateway automatisch Reload + Slash-Sync aus; wir melden das Ergebnis.
-  async function runUpdate(cog: string) {
-    msg = '';
+  // Pro Cog: Update + Reload (schnell, KEIN Slash-Sync – der läuft einmal am Ende).
+  // Liefert true bei Erfolg.
+  async function runUpdate(cog: string): Promise<boolean> {
     err = '';
     try {
       const res = await fetch('/api/downloader', {
@@ -164,17 +183,18 @@
       const j = await res.json();
       if (j.error) {
         err = `${cog}: ${j.error}`;
-      } else {
-        const parts = [`${cog}: ${$t('cogs.updated')}`];
-        if (j.self_skipped) parts.push($t('cogs.reload_manual'));
-        else if (j.reloaded) parts.push($t('cogs.reloaded'));
-        else if (j.reload_error) parts.push($t('cogs.reload_failed') + ': ' + j.reload_error);
-        if (j.synced != null) parts.push($t('cogs.synced', { n: j.synced }));
-        msg = parts.join(' · ');
-        clearUpdateFlag(cog); // optimistisch: Badge/Button sofort weg
+        return false;
       }
+      const parts = [`${cog}: ${$t('cogs.updated')}`];
+      if (j.self_skipped) parts.push($t('cogs.reload_manual'));
+      else if (j.reloaded) parts.push($t('cogs.reloaded'));
+      else if (j.reload_error) parts.push($t('cogs.reload_failed') + ': ' + j.reload_error);
+      msg = parts.join(' · ');
+      clearUpdateFlag(cog); // optimistisch: Badge/Button sofort weg
+      return true;
     } catch (e) {
       err = `${cog}: ` + (e instanceof Error ? e.message : 'Fehler');
+      return false;
     }
   }
 
@@ -211,6 +231,8 @@
         <button class="rounded px-3 py-1.5 {tab === 'downloader' ? 'bg-secondary font-medium' : 'text-muted-foreground'}" on:click={() => (tab = 'downloader')}>{$t('cogs.tab_downloader')}</button>
         <button class="rounded px-3 py-1.5 {tab === 'global' ? 'bg-secondary font-medium' : 'text-muted-foreground'}" on:click={() => (tab = 'global')}>{$t('cogs.tab_global')} ({data.globalPanels?.length ?? 0})</button>
       </div>
+      {#if syncingSlash}<span class="text-sm text-amber-500">⟳ {$t('cogs.slash_syncing')}</span>
+      {:else if updatingNow}<span class="text-sm text-amber-500">⟳ {updatingNow}{#if updateQueue.length} (+{updateQueue.length}){/if}</span>{/if}
       {#if msg}<span class="text-sm text-emerald-500">{msg}</span>{/if}
       {#if err}<span class="text-sm text-destructive">{err}</span>{/if}
     </div>
