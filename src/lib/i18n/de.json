@@ -140,6 +140,8 @@
   "cogs.title": "Cog-Verwaltung",
   "cogs.forbidden": "Nur der Bot-Owner kann die Cog-Verwaltung nutzen.",
   "cogs.tab_cogs": "Cogs",
+  "cogs.required": "Erforderlich",
+  "cogs.required_hint": "Wird für das Web-Dashboard benötigt – nicht entladen/deinstallieren.",
   "cogs.filter_repo": "Nach Repo filtern",
   "cogs.filter_repo_all": "Alle Repos",
   "cogs.filter_repo_none": "Ohne Repo",

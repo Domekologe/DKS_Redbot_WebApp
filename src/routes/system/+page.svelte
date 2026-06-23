@@ -14,6 +14,7 @@
   let updateLog = '';
   let updatePhase: '' | 'building' | 'restarting' | 'done' | 'error' = '';
   let updateError = '';
+  let bootBefore: string | null = null; // Boot-ID des Servers VOR dem Neustart
   let restartManual = false; // Build ok, aber Dienst-Neustart muss manuell erfolgen.
 
   // Letzte aussagekraeftige Fehlerzeile aus dem Log ziehen.
@@ -35,6 +36,7 @@
     updateLog = '';
     updateError = '';
     restartManual = false;
+    bootBefore = null;
     updatePhase = 'building';
     try {
       const res = await fetch('/api/update', { method: 'POST' });
@@ -70,6 +72,8 @@
           return;
         }
         updateLog = j.log ?? '';
+        // Boot-ID des laufenden (noch alten) Servers merken – Referenz für den Neustart.
+        if (bootBefore === null && j.boot) bootBefore = j.boot;
         // Build/Script abgebrochen → Fehler aus dem Log anzeigen, kein Timeout.
         if (j.failed) {
           updatePhase = 'error';
@@ -92,25 +96,39 @@
         updatePhase = 'restarting';
       }
     }
-    // Phase 2: auf Neustart warten (Server muss erst weg sein, dann wieder da).
+    // Phase 2: auf Neustart warten und DANACH die Seite neu laden.
+    // Primärsignal: die Boot-ID ändert sich (neuer Prozess). Das ist zuverlässig,
+    // auch wenn der Neustart so schnell ist, dass das "Server weg"-Fenster verpasst wird.
+    // Fallback: Server war weg und ist wieder da.
     let wasDown = false;
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 90; i++) {
       await sleep(2000);
       try {
         const r = await fetch('/api/update', { cache: 'no-store' });
-        if (r.ok && wasDown) {
-          updatePhase = 'done';
-          updating = false;
-          await sleep(1200);
-          location.reload();
-          return;
+        if (r.ok) {
+          let booted = false;
+          try {
+            const j = await r.json();
+            booted = !!(j.boot && bootBefore && j.boot !== bootBefore);
+          } catch {
+            /* ignore */
+          }
+          if (booted || wasDown) {
+            updatePhase = 'done';
+            updating = false;
+            await sleep(800);
+            location.reload();
+            return;
+          }
         }
       } catch {
         wasDown = true;
       }
     }
+    // Sicherheitsnetz: Neustart nicht eindeutig erkannt → trotzdem einmal neu laden.
     updatePhase = 'done';
     updating = false;
+    location.reload();
   }
 
   function uptime(s: number | null): string {

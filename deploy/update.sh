@@ -38,8 +38,12 @@ as_service() {
   fi
 }
 
-# git ohne "dubious ownership"-Abbruch (egal welcher User das Repo besitzt).
-GIT=(git -c "safe.directory=$APP_DIR" -c "safe.directory=*")
+# git ohne "dubious ownership"-Abbruch (egal welcher User das Repo besitzt) und ohne
+# die globalen ignore/attributes-Dateien zu lesen – sonst gibt es "Permission denied"-
+# Warnungen, wenn der Dienst-User nicht an ~/.config/git herankommt. /dev/null ist immer
+# lesbar und leer, daher verschwinden die Warnungen ohne Funktionsverlust.
+GIT=(git -c "safe.directory=$APP_DIR" -c "safe.directory=*" \
+     -c "core.excludesFile=/dev/null" -c "core.attributesFile=/dev/null")
 
 # Aktuellen Stand holen (nur wenn es ein Git-Repo ist).
 # Ein Deploy-Checkout soll GitHub exakt spiegeln, daher fetch + hard reset

@@ -11,6 +11,11 @@ const DONE_MARKER = '===UPDATE_DONE===';
 const ERROR_MARKER = '===UPDATE_ERROR===';
 const RESTART_SKIPPED_MARKER = '===RESTART_SKIPPED===';
 
+// Eindeutige ID dieses Server-Prozesses. Ändert sich bei jedem (Neu-)Start →
+// die /system-Seite erkennt daran zuverlässig, dass der Dienst neu gestartet ist,
+// und lädt dann selbst neu (unabhängig davon, ob das kurze Down-Fenster getroffen wurde).
+const BOOT_ID = `${process.pid}-${Date.now()}`;
+
 async function requireOwner(locals: App.Locals): Promise<string | null> {
   if (!locals.user) return 'unauthorized';
   try {
@@ -36,7 +41,8 @@ export const GET: RequestHandler = async ({ locals }) => {
     log: log.slice(-6000),
     done: log.includes(DONE_MARKER),
     failed: log.includes(ERROR_MARKER),
-    restartSkipped: log.includes(RESTART_SKIPPED_MARKER)
+    restartSkipped: log.includes(RESTART_SKIPPED_MARKER),
+    boot: BOOT_ID
   });
 };
 

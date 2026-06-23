@@ -140,6 +140,8 @@
   "cogs.title": "Cog management",
   "cogs.forbidden": "Only the bot owner can use cog management.",
   "cogs.tab_cogs": "Cogs",
+  "cogs.required": "Required",
+  "cogs.required_hint": "Needed for the web dashboard – do not unload/uninstall.",
   "cogs.filter_repo": "Filter by repo",
   "cogs.filter_repo_all": "All repos",
   "cogs.filter_repo_none": "No repo",

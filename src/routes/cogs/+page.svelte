@@ -41,6 +41,10 @@
   let repoUrl = '';
   let repoBranch = '';
 
+  // Diese Cogs sind für das Web-Dashboard zwingend erforderlich → „Erforderlich"-Pill.
+  const REQUIRED_COGS = new Set(['webdashboard', 'web_serverstats']);
+  const isRequired = (name: string) => REQUIRED_COGS.has(name.toLowerCase());
+
   // Repo-Filter: Dropdown mit allen vorkommenden Repos (+ "ohne Repo" falls vorhanden).
   let repoFilter = 'all';
   $: repoOptions = Array.from(
@@ -266,6 +270,7 @@
               <span class="truncate text-sm {c.loaded ? 'font-medium' : 'text-muted-foreground'}">{c.name}</span>
             </div>
             <div class="flex shrink-0 items-center gap-2">
+              {#if isRequired(c.name)}<span class="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-500" title={$t('cogs.required_hint')}>{$t('cogs.required')}</span>{/if}
               {#if c.repo}<span class="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground" title="Repo">{c.repo}</span>{/if}
               {#if c.has_dashboard}<span class="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] text-primary" title="Dashboard-Integration">DB</span>{/if}
               {#if c.loaded}<button type="button" class="text-xs text-muted-foreground hover:text-foreground" on:click={() => reloadCog(c.name)}>↻</button>{/if}
@@ -384,6 +389,7 @@
                         {/if}
                         <div class="min-w-0">
                           <code class={c.installed ? 'text-foreground' : 'text-primary'}>{c.name}</code>
+                          {#if isRequired(c.name)}<span class="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-500" title={$t('cogs.required_hint')}>{$t('cogs.required')}</span>{/if}
                           {#if c.update}<span class="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-500">{$t('cogs.update_badge')}</span>{/if}
                           {#if c.description}<span class="text-muted-foreground"> — {c.description}</span>{/if}
                         </div>
