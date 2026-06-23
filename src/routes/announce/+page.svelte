@@ -55,7 +55,8 @@
     msg = j.error ? '✗ ' + j.error : '✓ ' + $t('announce.sent');
   }
 
-  $: previewDesc = renderMarkdown(description);
+  // Discord erhält einzelne Zeilenumbrüche → softBreaks, damit die Vorschau passt.
+  $: previewDesc = renderMarkdown(description, { softBreaks: true });
 </script>
 
 <div class="mx-auto max-w-5xl space-y-6">

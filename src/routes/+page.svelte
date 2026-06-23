@@ -20,7 +20,11 @@
     } | null;
     online: boolean;
     user: { username: string } | null;
+    branding?: { description?: string; support_url?: string } | null;
   };
+
+  // Branding-Beschreibung hat Vorrang vor der Bot-About-Beschreibung.
+  $: supportUrl = data.branding?.support_url?.trim() || '';
 
   type Cmd = { name: string; description: string; cog: string; repo?: string | null };
 
@@ -80,11 +84,18 @@
             {$t('home.online')}{#if stats.latency_ms != null} · {$t('home.latency', { ms: stats.latency_ms })}{/if}
           </span>
         </div>
-        {#if !data.user}
-          <a href="/auth/login" class="mt-5 inline-flex items-center justify-center rounded-md bg-[#5865F2] px-4 py-2.5 text-sm font-medium text-white hover:opacity-90">
-            {$t('login.with_discord')}
-          </a>
-        {/if}
+        <div class="mt-5 flex flex-wrap items-center gap-3">
+          {#if !data.user}
+            <a href="/auth/login" class="inline-flex items-center justify-center rounded-md bg-[#5865F2] px-4 py-2.5 text-sm font-medium text-white hover:opacity-90">
+              {$t('login.with_discord')}
+            </a>
+          {/if}
+          {#if supportUrl}
+            <a href={supportUrl} target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-md border border-input px-4 py-2.5 text-sm font-medium hover:bg-secondary">
+              {$t('home.support_server')}
+            </a>
+          {/if}
+        </div>
       </div>
     </div>
   </Card>

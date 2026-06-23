@@ -6,21 +6,57 @@
   export let data: {
     user: { username: string; avatar?: string | null } | null;
     pages?: Array<{ slug: string; title: string; nav: boolean; visibility: string }>;
+    branding?: {
+      title?: string;
+      icon?: string;
+      description?: string;
+      support_url?: string;
+      color?: string;
+      theme?: string;
+    } | null;
   };
 
   // Custom Pages in der Navigation: öffentliche immer, private nur eingeloggt.
   $: navPages = (data.pages ?? []).filter((p) => p.nav && (p.visibility === 'public' || data.user));
+
+  // Branding-Titel/Icon (Fallback: i18n-App-Titel). Reaktiv, damit ein Speichern sofort greift.
+  $: brandTitle = data.branding?.title?.trim() || $t('app.title');
+  $: brandIcon = data.branding?.icon?.trim() || '';
+
+  // Farb-Token (Branding-Farbe → CSS-Variable --primary, HSL).
+  const PRIMARY: Record<string, string> = {
+    indigo: '243 75% 59%',
+    success: '142 71% 45%',
+    blue: '217 91% 60%',
+    red: '0 72% 51%'
+  };
+
+  function applyBranding() {
+    if (typeof document === 'undefined') return;
+    const c = data.branding?.color && PRIMARY[data.branding.color];
+    if (c) document.documentElement.style.setProperty('--primary', c);
+    document.title = brandTitle;
+  }
 
   let theme = 'dark';
   onMount(() => {
     const saved = typeof localStorage !== 'undefined' && localStorage.getItem('locale');
     if (saved) setLocale(saved);
     const savedTheme = typeof localStorage !== 'undefined' && localStorage.getItem('theme');
-    if (savedTheme === 'light') {
+    // Branding-Theme als Default, solange der Nutzer nicht selbst umgeschaltet hat.
+    const effectiveTheme = savedTheme || data.branding?.theme || 'dark';
+    if (effectiveTheme === 'light') {
       theme = 'light';
       document.documentElement.classList.remove('dark');
+    } else {
+      theme = 'dark';
+      document.documentElement.classList.add('dark');
     }
+    applyBranding();
   });
+
+  // Bei Branding-Änderung (nach invalidateAll) Titel/Farbe sofort übernehmen.
+  $: if (data.branding) applyBranding();
 
   function toggleTheme() {
     theme = theme === 'dark' ? 'light' : 'dark';
@@ -44,8 +80,12 @@
 <div class="flex min-h-screen">
   <aside class="hidden w-60 shrink-0 border-r border-border bg-card/40 p-4 md:block">
     <div class="mb-6 flex items-center gap-2 px-2">
-      <span class="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">D</span>
-      <span class="text-lg font-bold">{$t('app.title')}</span>
+      {#if brandIcon}
+        <img src={brandIcon} alt="" class="h-6 w-6 rounded-md object-cover" />
+      {:else}
+        <span class="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">{brandTitle.charAt(0).toUpperCase()}</span>
+      {/if}
+      <span class="text-lg font-bold">{brandTitle}</span>
     </div>
     <nav class="space-y-1 text-sm">
       {#each publicNav as n}
@@ -72,7 +112,7 @@
 
   <div class="flex flex-1 flex-col">
     <header class="flex items-center justify-between border-b border-border px-6 py-3">
-      <div class="text-base font-bold md:hidden">{$t('app.title')}</div>
+      <div class="text-base font-bold md:hidden">{brandTitle}</div>
       <div class="ml-auto flex items-center gap-3">
         <button
           type="button"

@@ -1,14 +1,9 @@
 <script lang="ts">
   import Card from '$lib/components/ui/Card.svelte';
-  import PanelForm from '$lib/components/PanelForm.svelte';
   import { invalidateAll } from '$app/navigation';
   import { t } from '$lib/i18n';
 
   export let data: any;
-
-  // Aufklappbare globale Modul-Panels
-  let openPanels: Record<string, boolean> = {};
-  const togglePanel = (key: string) => (openPanels = { ...openPanels, [key]: !openPanels[key] });
 
   let busy = '';
   let msg = '';
@@ -134,31 +129,8 @@
       </div>
     </Card>
 
-    <!-- Globale Modul-Einstellungen (Cog-Panels, scope=global) -->
-    {#if data.globalPanels?.length}
-      <div>
-        <h2 class="mb-2 text-base font-semibold">{$t('settings.module_settings_global')}</h2>
-        <div class="space-y-3">
-          {#each data.globalPanels as p (p.key)}
-            <div class="overflow-hidden rounded-lg border border-border">
-              <button
-                type="button"
-                class="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium hover:bg-secondary/40"
-                on:click={() => togglePanel(p.key)}
-              >
-                <span>{p.cog} · {p.name}</span>
-                <span class="text-muted-foreground">{openPanels[p.key] ? '▲' : '▼'}</span>
-              </button>
-              {#if openPanels[p.key]}
-                <div class="border-t border-border p-3">
-                  <PanelForm contribution={p} guildId={null} />
-                </div>
-              {/if}
-            </div>
-          {/each}
-        </div>
-      </div>
-    {/if}
+    <!-- Globale Modul-Einstellungen ausgeblendet: werden bereits unter Cogs → Global
+         verwaltet. Doppelte Pflege führte zu Verwirrung (siehe Feedback). -->
 
     <a href="/pages" class="inline-block text-sm text-primary hover:underline">{$t('settings.manage_pages')}</a>
   {/if}

@@ -41,7 +41,18 @@
   let repoUrl = '';
   let repoBranch = '';
 
-  $: filteredCogs = query ? data.cogs.filter((c) => c.name.toLowerCase().includes(query.toLowerCase())) : data.cogs;
+  // Repo-Filter: Dropdown mit allen vorkommenden Repos (+ "ohne Repo" falls vorhanden).
+  let repoFilter = 'all';
+  $: repoOptions = Array.from(
+    new Set(data.cogs.map((c) => c.repo ?? '__none__'))
+  ).sort((a, b) => (a === '__none__' ? 1 : b === '__none__' ? -1 : a.localeCompare(b)));
+
+  $: filteredCogs = data.cogs.filter((c) => {
+    const okQuery = !query || c.name.toLowerCase().includes(query.toLowerCase());
+    const okRepo =
+      repoFilter === 'all' || (repoFilter === '__none__' ? !c.repo : c.repo === repoFilter);
+    return okQuery && okRepo;
+  });
 
   async function post(url: string, body: unknown, label: string) {
     busy = label;
@@ -166,7 +177,18 @@
     </div>
 
     {#if tab === 'cogs'}
-      <input type="text" bind:value={query} placeholder={$t('common.search')} class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+      <div class="flex flex-wrap items-center gap-2">
+        <input type="text" bind:value={query} placeholder={$t('common.search')} class="min-w-[200px] flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm" />
+        <select bind:value={repoFilter} class="rounded-md border border-input bg-background px-3 py-2 text-sm" title={$t('cogs.filter_repo')}>
+          <option value="all">{$t('cogs.filter_repo_all')}</option>
+          {#each repoOptions as r}
+            <option value={r}>{r === '__none__' ? $t('cogs.filter_repo_none') : r}</option>
+          {/each}
+        </select>
+      </div>
+      {#if filteredCogs.length === 0}
+        <p class="text-sm text-muted-foreground">{$t('cogs.filter_empty')}</p>
+      {/if}
       <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {#each filteredCogs as c (c.name)}
           <Card class="flex items-center justify-between gap-2 p-3">

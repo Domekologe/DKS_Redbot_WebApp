@@ -27,7 +27,18 @@ function inline(s: string): string {
   return s;
 }
 
-export function renderMarkdown(md: string): string {
+// Inline-Listenstile: die Tailwind-Base setzt `list-style:none`, und das Typography-
+// Plugin ist nicht garantiert vorhanden. Damit Aufzählungen IMMER (auch in der
+// Discord-ähnlichen Announce-Vorschau) sichtbare Punkte haben, stylen wir inline.
+const UL_OPEN = '<ul style="list-style:disc;padding-left:1.5rem;margin:0.25rem 0">';
+const OL_OPEN = '<ol style="list-style:decimal;padding-left:1.5rem;margin:0.25rem 0">';
+
+export interface MarkdownOptions {
+  /** Discord-Stil: einzelne Zeilenumbrüche bleiben als <br> erhalten. */
+  softBreaks?: boolean;
+}
+
+export function renderMarkdown(md: string, opts: MarkdownOptions = {}): string {
   const lines = esc(md ?? '').replace(/\r\n/g, '\n').split('\n');
   const out: string[] = [];
   let inUl = false,
@@ -36,7 +47,8 @@ export function renderMarkdown(md: string): string {
   let para: string[] = [];
   const flushPara = () => {
     if (para.length) {
-      out.push(`<p>${inline(para.join(' '))}</p>`);
+      const joined = para.join(opts.softBreaks ? '<br>' : ' ');
+      out.push(`<p>${inline(joined)}</p>`);
       para = [];
     }
   };
@@ -88,7 +100,7 @@ export function renderMarkdown(md: string): string {
         inOl = false;
       }
       if (!inUl) {
-        out.push('<ul>');
+        out.push(UL_OPEN);
         inUl = true;
       }
       out.push(`<li>${inline(m[1])}</li>`);
@@ -101,7 +113,7 @@ export function renderMarkdown(md: string): string {
         inUl = false;
       }
       if (!inOl) {
-        out.push('<ol>');
+        out.push(OL_OPEN);
         inOl = true;
       }
       out.push(`<li>${inline(m[1])}</li>`);
