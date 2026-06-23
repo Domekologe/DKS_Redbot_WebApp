@@ -1,7 +1,9 @@
 <script lang="ts">
   import Card from './ui/Card.svelte';
-  import { onMount, tick } from 'svelte';
+  import { onMount, tick, createEventDispatcher } from 'svelte';
   import { t } from '$lib/i18n';
+
+  const dispatch = createEventDispatcher();
 
   export let contribution: { key: string; name: string; description?: string | null };
   export let guildId: string | null = null;
@@ -60,8 +62,14 @@
     const json = await res.json();
     saving = false;
     if (json.error) { error = json.error; return; }
-    if (json.result?.success) message = json.result.message ?? 'Gespeichert.';
-    else error = json.result?.message ?? 'Fehler';
+    if (json.result?.success) {
+      message = json.result.message ?? 'Gespeichert.';
+      // Manche Aktionen (z. B. Profilwechsel) wirken sich auf andere Tabs aus →
+      // Modul-Reload anstoßen, damit die Geschwister-Panels den Stand neu laden.
+      if (json.result.reload) dispatch('reloadModule');
+    } else {
+      error = json.result?.message ?? 'Fehler';
+    }
   }
 
   // Select mit reload_on_change: Auswahl sofort anwenden (Speichern) + Panel neu laden,

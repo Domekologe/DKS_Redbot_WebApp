@@ -31,6 +31,12 @@
   // Bereits geöffnete Tabs merken → Inhalt bleibt erhalten (kein Neuladen beim Wechsel).
   let seen: Record<string, boolean> = {};
   $: if (active) seen = { ...seen, [active]: true };
+
+  // Ein Panel meldet, dass sich modulweite Daten geändert haben (z. B. Profilwechsel).
+  // Alle ANDEREN Tabs aus dem Cache werfen → sie laden beim nächsten Öffnen frisch.
+  function reloadSiblings() {
+    seen = active ? { [active]: true } : {};
+  }
 </script>
 
 {#if tabs.length === 0}
@@ -59,7 +65,7 @@
       {#if seen[t.key]}
         <div class:hidden={active !== t.key}>
           {#if t.kind === 'panel'}
-            <PanelForm contribution={t} {guildId} />
+            <PanelForm contribution={t} {guildId} on:reloadModule={reloadSiblings} />
           {:else if t.kind === 'list'}
             <ListManager contribution={t} {guildId} />
           {/if}
