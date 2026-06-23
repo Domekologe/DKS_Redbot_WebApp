@@ -1,4 +1,4 @@
-import type { Handle } from '@sveltejs/kit';
+import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { readSession, clearSession } from '$lib/server/session';
 import { rpc } from '$lib/server/rpc';
 
@@ -35,5 +35,29 @@ export const handle: Handle = async ({ event, resolve }) => {
   } else {
     event.locals.user = null;
   }
-  return resolve(event);
+
+  try {
+    return await resolve(event);
+  } catch (err) {
+    // Externe Bots/Scanner klopfen ständig nicht-existente Pfade ab
+    // (z. B. /robots.txt, /assets/js/*.js, /bot-connect.js, *.php). Diese 404s
+    // ruhig beantworten, statt den Journal-Log mit Stacktraces zu fluten.
+    const status = (err as { status?: number } | null)?.status;
+    if (status === 404) {
+      return new Response('Not found', {
+        status: 404,
+        headers: { 'content-type': 'text/plain; charset=utf-8' }
+      });
+    }
+    throw err;
+  }
+};
+
+// SvelteKit ruft dies bei unerwarteten Fehlern auf. 404s (Bot-Probes) NICHT loggen,
+// alles andere mit voller Info ins Journal.
+export const handleError: HandleServerError = ({ error, status }) => {
+  if (status !== 404) {
+    console.error(error);
+  }
+  return { message: status === 404 ? 'Not found' : 'Internal Error' };
 };

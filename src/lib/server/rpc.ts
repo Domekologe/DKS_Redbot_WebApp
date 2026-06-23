@@ -20,10 +20,17 @@ export class RpcError extends Error {
   }
 }
 
+// Hartes Timeout pro RPC-Aufruf. Ohne das hängt ein blockierter Gateway-Call (z. B.
+// ein Cog-Handler, der die Bot-Event-Loop blockiert) den Node-Request endlos – und der
+// Reverse-Proxy antwortet dann mit 502 "Bad Gateway". Mit Timeout kommt stattdessen
+// schnell ein sauberer Fehler zurück (Widget/Seite zeigt eine Meldung statt 502).
+const RPC_TIMEOUT_MS = 15_000;
+
 export async function rpc<T = unknown>(
   method: string,
   args: Record<string, unknown> = {},
-  auth?: RpcAuth
+  auth?: RpcAuth,
+  timeoutMs: number = RPC_TIMEOUT_MS
 ): Promise<T> {
   const body = {
     jsonrpc: '2.0',
@@ -32,14 +39,27 @@ export async function rpc<T = unknown>(
     params: { auth: auth ?? null, args }
   };
 
-  const res = await fetch(`${config.gatewayUrl}/rpc`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'X-Dashboard-Token': config.gatewayToken
-    },
-    body: JSON.stringify(body)
-  });
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), timeoutMs);
+  let res: Response;
+  try {
+    res = await fetch(`${config.gatewayUrl}/rpc`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'X-Dashboard-Token': config.gatewayToken
+      },
+      body: JSON.stringify(body),
+      signal: ac.signal
+    });
+  } catch (e) {
+    if ((e as { name?: string })?.name === 'AbortError') {
+      throw new RpcError(504, `Gateway-Timeout (${method}) nach ${timeoutMs} ms`);
+    }
+    throw new RpcError(502, `Gateway nicht erreichbar (${method})`);
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (!res.ok) {
     throw new RpcError(res.status, `Gateway-HTTP-Fehler ${res.status}`);
