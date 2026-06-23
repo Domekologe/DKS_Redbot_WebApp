@@ -1,179 +1,9 @@
 # DKS Redbot WebApp
 
-> 🇩🇪 Deutsch zuerst — 🇬🇧 **English version below.**
-
-Modernes, modulares Web-Dashboard (Frontend + BFF) für den DKS Red-DiscordBot.
-Gegenstück zum Companion-Cog `webdashboard` (Repo `DKS_Redcogs`).
-
-![Screenshot: DKS Redbot WebApp – Dashboard-Startseite](assets/readme-dashboard-home.png)
-
-> 📖 **Vollständige Doku:** [DKS_Redbot_WebApp Wiki](https://github.com/Domekologe/DKS_Redbot_WebApp/wiki) (Deutsch & English)
-
-- **Repository:** https://github.com/Domekologe/DKS_Redbot_WebApp
-- **Stack:** SvelteKit + TypeScript + TailwindCSS (shadcn-svelte-Tokens), adapter-node, Chart.js
-- **Auth:** Discord OAuth2 (Login im SvelteKit-Server / BFF)
-- **Transport zum Bot:** JSON-RPC 2.0 über das Gateway des Cogs (HTTP + WebSocket)
-- **Sprachen:** Deutsch & Englisch (Umschalter oben rechts, vollständig übersetzte UI)
-
-```bash
-git clone https://github.com/Domekologe/DKS_Redbot_WebApp.git
-cd DKS_Redbot_WebApp
-```
-
-Architektur-Details: `DKS_Redcogs/webdashboard/ARCHITECTURE.md`.
-
-## Funktionen
-
-- Öffentliche Landing/Übersicht + **Befehlsliste** (ohne Login).
-- Nach Login: **Server-Übersicht**, Bot-Einstellungen pro Gilde, eingebettete
-  **Cog-Widgets, -Panels & -Listen** – pro Cog in **einem Modul mit Tabs**
-  (Anlegen/Ansehen/Bearbeiten/Löschen, z. B. ReactionRoles, WoW-Profile).
-- **Cog-Verwaltung** (`/cogs`): Cogs laden/entladen/**neu laden**, **Downloader**
-  (Repos aufklappbar, **Update-Check + „Aktualisieren" pro Cog**), **Slash** (nach Cog
-  gruppiert, einzeln/Cog-weit an/aus inkl. **deaktivierter** Befehle, Sync),
-  **Global** (globale Owner-Panels einzelner Cogs als Tabs).
-- **Statistiken** (`/stats`): Statbot-artige Server-Analysen (Übersicht, Nachrichten,
-  Voice, Status, Einladungen, Aktivität, Member-/Channel-Drilldown) mit Server-Dropdown,
-  Zeit-Filter und Chart.js-Diagrammen (Serien ein-/ausblendbar). Benötigt den Cog
-  **`web_serverstats`** (sammelt die Daten).
-
-![Screenshot: Statistik-Seite mit Chart.js-Diagrammen](assets/readme-stats.png)
-![Screenshot: Cog-Verwaltung (Cogs/Slash/Downloader)](assets/readme-cogs.png)
-- **Einstellungen** (`/settings`): globale Bot-Settings, Branding, Lock/Refresh,
-  globale Modul-Panels.
-- **Custom Pages** (`/pages`): **Markdown**-Editor mit Vorschau, **Public/Private**
-  je Seite (private nur eingeloggt), erscheinen sofort in der Navigation.
-
-## Entwicklung
-
-```bash
-npm install
-cp .env.example .env      # Werte eintragen (siehe unten)
-npm run dev               # http://localhost:5173
-```
-
-### `.env`
-| Variable | Beschreibung |
-|---|---|
-| `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET` | Aus dem Discord Developer Portal (OAuth2) |
-| `DISCORD_REDIRECT_URI` | Muss exakt als Redirect im Portal hinterlegt sein |
-| `GATEWAY_URL` | Adresse des Cog-Gateways (Default `http://127.0.0.1:6970`) |
-| `GATEWAY_TOKEN` | Im Bot mit `[p]dksdashboard token` abrufen |
-| `SESSION_SECRET` | Langes Zufalls-Secret, z. B. `openssl rand -hex 32` |
-
-## Production (empfohlen: `node build`, nicht `npm run dev`)
-
-**Schnellster Weg – fertiger Linux-Service per Copy/Paste:**
-```bash
-cp .env.example .env && nano .env     # einmalig konfigurieren
-sudo bash deploy/install-service.sh   # baut + richtet systemd-Service ein + startet
-```
-Details/Update-Skript: `deploy/README.md`. Manuell geht es so:
-
-```bash
-npm ci
-npm run build
-node -r dotenv/config build      # startet adapter-node (Default Port 3000)
-```
-
-**Wichtige Stolpersteine (aus der Praxis):**
-
-1. **`node build` liest die `.env` NICHT.** adapter-node nutzt nur echte
-   Umgebungsvariablen. Lade sie z. B. mit `node -r dotenv/config build`
-   (`npm i dotenv`), `set -a; . ./.env; set +a` oder systemd `EnvironmentFile=`.
-2. **Hinter HTTPS-Reverse-Proxy** zusätzlich setzen, sonst u. a. 403 beim Logout:
-   ```dotenv
-   ORIGIN=https://deine-domain
-   PROTOCOL_HEADER=x-forwarded-proto
-   HOST_HEADER=x-forwarded-host
-   ```
-3. **Tailwind-Config muss existieren.** Fehlt `tailwind.config.(cjs|js)`, baut Tailwind nur
-   das Base-Layer → Seite ist (fast) ungestylt. Config nie löschen, ins Git committen.
-   Bei `"type":"module"` ist `tailwind.config.cjs` (CommonJS) am robustesten.
-4. **Proxy muss `/_app/` durchreichen.** Eine einzige Catch-all-`location /` zum Node-Port
-   genügt; kein `root`/`try_files`, das `/_app/...` abfängt.
-5. **CDN-Cache (z. B. Cloudflare):** Assets sind `immutable` gecacht. Nach Rebuilds beim
-   Iterieren ggf. Cache purgen oder „Development Mode" nutzen.
-
-### systemd
-```ini
-# /etc/systemd/system/dks-dashboard.service
-[Unit]
-Description=DKS Redbot WebApp
-After=network.target
-[Service]
-WorkingDirectory=/opt/dks/redbot-dks-dashboard
-EnvironmentFile=/opt/dks/redbot-dks-dashboard/.env
-ExecStart=/usr/bin/node build
-Restart=on-failure
-User=dks
-[Install]
-WantedBy=multi-user.target
-```
-```bash
-sudo systemctl daemon-reload && sudo systemctl enable --now dks-dashboard
-journalctl -u dks-dashboard -f
-```
-
-### Docker
-```bash
-cp .env.example .env
-docker compose up -d --build      # http://localhost:3000
-```
-Läuft der Bot auf dem Host: `GATEWAY_URL=http://host.docker.internal:6970` (Compose mappt
-`host.docker.internal` per `extra_hosts` auch unter Linux).
-
-### nginx (Reverse-Proxy)
-```nginx
-server {
-    server_name deine-domain;
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Forwarded-Host $host;
-    }
-}
-```
-
-## Eigenen Cog anbinden
-
-Das macht man auf der **Bot-Seite** (Python), nicht hier. Anleitung + Vorlage:
-`DKS_Redcogs/webdashboard/INTEGRATION.md` und das Cog `dashboardtemplate`.
-
-## Struktur
-```
-src/
-  hooks.server.ts            Session aus Cookie + Epoch-Check
-  lib/server/                NUR serverseitig (Secrets!): env, session, auth, rpc
-  lib/components/            Widget, PanelForm, ListManager, ModuleTabs, ui/
-  lib/components/charts/     Chart.js-Wrapper (Line/Bar/Donut/SeriesToggle)
-  lib/i18n/                  de + en (vollständige UI-Übersetzung)
-  lib/markdown.ts            sicherer Markdown→HTML-Renderer (Custom Pages)
-  routes/
-    +page.svelte             Landing/Übersicht (öffentlich)
-    commands/                öffentliche Befehlsliste
-    guilds/ [id]/ settings/  Server-Übersicht + Bot-Einstellungen (Module mit Tabs)
-    cogs/                    Cog-Verwaltung (Cogs/Slash/Downloader/Global)
-    stats/                   Server-Statistiken (Cog web_serverstats)
-    settings/                globale Settings + Branding + globale Panels
-    pages/  p/[slug]/        Custom Pages (Markdown-Editor + öffentliche Ansicht)
-    auth/… logout            OAuth2-Flow
-    api/…                    BFF-Endpunkte (rufen RPC auf, inkl. /api/stats)
-```
-
----
-
-# 🇬🇧 DKS Redbot WebApp — English
-
-A modern, modular web dashboard (frontend + BFF) for the DKS Red-DiscordBot.
+A modern, modular and secure web dashboard (frontend + BFF) for the DKS Red-DiscordBot.
 Counterpart to the companion cog `webdashboard` (repo `DKS_Redcogs`).
 
-![Screenshot: DKS Redbot WebApp dashboard landing page](assets/readme-dashboard-home.png)
+![Screenshot: DKS Redbot WebApp dashboard landing page](https://cdn.domekologe.eu/d6c3daa9-2e80-4cdb-8191-5c700b811e2e/0779ae9a-104a-46cd-a2cb-dc9d0c678485/7ebdc3a3-4e9e-4ca6-a8ec-4d2ca280a14d.png)
 
 > 📖 **Full documentation:** [DKS_Redbot_WebApp Wiki](https://github.com/Domekologe/DKS_Redbot_WebApp/wiki) (English & Deutsch)
 
@@ -200,13 +30,19 @@ Architecture details: `DKS_Redcogs/webdashboard/ARCHITECTURE.md`.
   repos, **update check + per-cog "Update"**), **Slash** (grouped by cog, per-command/
   per-cog toggle incl. **disabled** commands, sync), **Global** (per-cog owner panels as tabs).
 - **Statistics** (`/stats`): Statbot-style server analytics (overview, messages, voice,
-  status, invites, activity, member/channel drilldown) with a server dropdown, time filter
-  and Chart.js charts (toggleable series). Requires the **`web_serverstats`** cog (collects
-  the data).
-- **Settings** (`/settings`): global bot settings, branding, lock/refresh, global module
-  panels.
+  status, invites, activity, heatmaps, live "Now", peaks, leaderboard, retention,
+  member/channel drilldown) with a server dropdown, time filter (up to 365 days) and
+  Chart.js charts. Requires the **`web_serverstats`** cog (collects the data).
+- **Announcements** (`/announce`): embed builder with live preview, send to a channel.
+- **Settings** (`/settings`): global bot settings, branding (title/icon/color/theme),
+  lock/refresh.
 - **Custom Pages** (`/pages`): **Markdown** editor with preview, **public/private** per
   page (private = logged-in only), appear in the navigation immediately.
+- **System** (`/system`): bot health, versions and an optional GitHub self-updater.
+
+![Screenshot: the /stats analytics page](https://cdn.domekologe.eu/d6c3daa9-2e80-4cdb-8191-5c700b811e2e/0779ae9a-104a-46cd-a2cb-dc9d0c678485/9ee4d6a4-de8f-488b-a250-9c1229af8334.png)
+![Screenshot: the /cogs management page](https://cdn.domekologe.eu/d6c3daa9-2e80-4cdb-8191-5c700b811e2e/0779ae9a-104a-46cd-a2cb-dc9d0c678485/183ca8ac-60eb-4f46-a47f-26968aac5046.png)
+![Screenshot: a cog's module with tabs in the dashboard](https://cdn.domekologe.eu/d6c3daa9-2e80-4cdb-8191-5c700b811e2e/0779ae9a-104a-46cd-a2cb-dc9d0c678485/59f446db-aaad-4a75-a345-6907d0abe5bf.png)
 
 ## Development
 
@@ -224,6 +60,7 @@ npm run dev               # http://localhost:5173
 | `GATEWAY_URL` | Address of the cog gateway (default `http://127.0.0.1:6970`) |
 | `GATEWAY_TOKEN` | Get it on the bot with `[p]dksdashboard token` |
 | `SESSION_SECRET` | Long random secret, e.g. `openssl rand -hex 32` |
+| `ENABLE_SELF_UPDATE` | `true` to enable the GitHub self-updater on `/system` |
 
 ## Production (recommended: `node build`, not `npm run dev`)
 
@@ -259,9 +96,27 @@ node -r dotenv/config build      # starts adapter-node (default port 3000)
 5. **CDN cache (e.g. Cloudflare):** assets are cached `immutable`. While iterating, purge
    the cache after rebuilds or use "Development Mode".
 
+![Screenshot: dashboard running behind a reverse proxy on a custom domain](https://cdn.domekologe.eu/d6c3daa9-2e80-4cdb-8191-5c700b811e2e/0779ae9a-104a-46cd-a2cb-dc9d0c678485/5dc851e4-c3c0-4f5b-b1e9-02f0c0dd9f79.png)
+
 ### systemd
-See the German section above for a ready-to-use unit file; the key is
-`EnvironmentFile=…/.env` + `ExecStart=/usr/bin/node build`.
+```ini
+# /etc/systemd/system/dks-dashboard.service
+[Unit]
+Description=DKS Redbot WebApp
+After=network.target
+[Service]
+WorkingDirectory=/opt/dks/redbot-dks-dashboard
+EnvironmentFile=/opt/dks/redbot-dks-dashboard/.env
+ExecStart=/usr/bin/node build
+Restart=on-failure
+User=dks
+[Install]
+WantedBy=multi-user.target
+```
+```bash
+sudo systemctl daemon-reload && sudo systemctl enable --now dks-dashboard
+journalctl -u dks-dashboard -f
+```
 
 ### Docker
 ```bash
@@ -271,12 +126,50 @@ docker compose up -d --build      # http://localhost:3000
 If the bot runs on the host: `GATEWAY_URL=http://host.docker.internal:6970` (compose maps
 `host.docker.internal` via `extra_hosts`, also on Linux).
 
+### nginx (reverse proxy)
+```nginx
+server {
+    server_name your-domain;
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+    }
+}
+```
+
+> Using Apache instead of nginx? Set `ProxyTimeout 60`/`Timeout 60` so slow gateway calls
+> don't turn into a 502.
+
 ## Integrating your own cog
 
 That's done on the **bot side** (Python), not here. Guide + template:
 `DKS_Redcogs/webdashboard/INTEGRATION.md` and the `dashboardtemplate` cog.
 
 ## Structure
-See the German section above; routes mirror the features (landing, commands, guilds,
-cogs, settings, pages) with `api/…` BFF endpoints calling RPC, and `lib/server/` holding
-all secrets server-side.
+```
+src/
+  hooks.server.ts            Session from cookie + epoch check, 404 filter
+  lib/server/                Server-side ONLY (secrets!): env, session, auth, rpc
+  lib/components/            Widget, PanelForm, ListManager, ModuleTabs, ui/
+  lib/components/charts/     Chart.js wrappers (Line/Bar/Donut/SeriesToggle) + Heatmap
+  lib/i18n/                  de + en (full UI translation)
+  lib/markdown.ts            safe Markdown→HTML renderer (Custom Pages)
+  routes/
+    +page.svelte             landing/overview (public)
+    commands/                public command list
+    guilds/ [id]/ settings/  server overview + bot settings (modules with tabs)
+    cogs/                    cog management (Cogs/Slash/Downloader/Global)
+    stats/                   server statistics (cog web_serverstats)
+    announce/                announcement/embed builder
+    settings/                global settings + branding
+    pages/  p/[slug]/        Custom Pages (Markdown editor + public view)
+    audit/  system/          audit log + bot health/self-updater
+    auth/… logout            OAuth2 flow
+    api/…                    BFF endpoints (call RPC, incl. /api/stats)
+```
