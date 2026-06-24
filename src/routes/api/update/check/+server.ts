@@ -4,7 +4,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { rpc, authFromUser, RpcError } from '$lib/server/rpc';
 import { env } from '$env/dynamic/private';
-import pkg from '../../../../package.json';
+import pkg from '../../../../../package.json';
 
 const exec = promisify(execFile);
 

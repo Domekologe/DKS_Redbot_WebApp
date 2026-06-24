@@ -22,7 +22,10 @@ Architecture details: `DKS_Redcogs/webdashboard/ARCHITECTURE.md`.
 
 ## Features
 
-- Public landing/overview + **command list** (no login).
+- Public landing/overview + **command list** (no login). The overview shows the bot's
+  **Markdown** description (GitHub-flavored) and an **"Invite me"** button (the bot's OAuth
+  invite, auto-built from the client id with `scope=bot+applications.commands&permissions=8`,
+  overridable via the `invite_url` branding field).
 - After login: **server overview**, per-guild bot settings, embedded **cog widgets,
   panels & lists** – one **module-with-tabs** per cog (create/view/edit/delete, e.g.
   reaction roles, WoW profiles).
@@ -35,10 +38,21 @@ Architecture details: `DKS_Redcogs/webdashboard/ARCHITECTURE.md`.
   Chart.js charts. Requires the **`webdashboard_stats`** cog (collects the data).
 - **Announcements** (`/announce`): embed builder with live preview, send to a channel.
 - **Settings** (`/settings`): global bot settings, branding (title/icon/color/theme),
-  lock/refresh.
+  a **Markdown bot description**, a **website description (`short_desc`)** used as the HTML
+  `<meta name="description">` and Open Graph description for SEO/link previews, an optional
+  `invite_url` override, lock/refresh. The **favicon and OG image** come from the bot's avatar.
+- **Navigation:** every menu entry has an icon; a bottom section adds external links opening
+  in a new tab — **Documentation** (the GitHub Wiki), **GitHub: Dashboard** and **GitHub: Cogs** —
+  plus an internal **Credits** link. Mobile gets the same menu via a hamburger drawer.
+- **Credits** (`/credits`, public): attribution/licensing (MIT base template; AAA3A &
+  Neuro Assassin#4779 under AGPLv3; Red-DiscordBot by Twentysix under GPLv3) with links to the
+  policy documents in `documents/` (`Credits.md`, `Privacy Policy.md`, `Cookie Policy.md`,
+  `Third Parties Disclaimer.md`).
 - **Custom Pages** (`/pages`): **Markdown** editor with preview, **public/private** per
   page (private = logged-in only), appear in the navigation immediately.
-- **System** (`/system`): bot health, versions and an optional GitHub self-updater.
+- **System** (`/system`): bot health, versions, an optional GitHub self-updater, and a
+  **"Check for updates"** button that compares the running version (from `package.json`) with
+  the latest on the git remote and reports "up to date" / "update available".
 
 ![Screenshot: the /stats analytics page](https://cdn.domekologe.eu/d6c3daa9-2e80-4cdb-8191-5c700b811e2e/0779ae9a-104a-46cd-a2cb-dc9d0c678485/9ee4d6a4-de8f-488b-a250-9c1229af8334.png)
 ![Screenshot: the /cogs management page](https://cdn.domekologe.eu/d6c3daa9-2e80-4cdb-8191-5c700b811e2e/0779ae9a-104a-46cd-a2cb-dc9d0c678485/183ca8ac-60eb-4f46-a47f-26968aac5046.png)
