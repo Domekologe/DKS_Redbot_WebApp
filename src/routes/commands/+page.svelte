@@ -59,8 +59,14 @@
     return acc;
   }, {});
   $: groupNames = Object.keys(groups).sort((a, b) => a.localeCompare(b));
-  // Repo eines Moduls (erstes Command mit Repo-Angabe).
-  const repoForCog = (cog: string) => groups[cog]?.find((x) => x.repo)?.repo ?? null;
+  // Globale Modul→Repo-Zuordnung (über ALLE Befehle, unabhängig vom Filter),
+  // damit das Menü links und die Detailüberschrift beide das Repo zeigen.
+  $: cogRepo = (() => {
+    const m = new Map<string, string>();
+    for (const x of merged) if (x.repo && !m.has(x.cog)) m.set(x.cog, x.repo);
+    return m;
+  })();
+  const repoForCog = (cog: string) => cogRepo.get(cog) ?? null;
 
   $: totals = {
     all: merged.length,
@@ -106,10 +112,14 @@
       </button>
       {#each modules as m (m)}
         <button
-          class="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm hover:bg-secondary {selectedModule === m ? 'bg-secondary font-medium' : ''}"
+          class="flex w-full items-start justify-between gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-secondary {selectedModule === m ? 'bg-secondary font-medium' : ''}"
           on:click={() => (selectedModule = m)}
         >
-          <span class="truncate">{m}</span><span class="ml-2 shrink-0 text-muted-foreground">{moduleCount(m)}</span>
+          <span class="min-w-0">
+            <span class="block truncate">{m}</span>
+            {#if cogRepo.get(m)}<span class="block truncate text-[10px] font-normal text-muted-foreground/70">{cogRepo.get(m)}</span>{/if}
+          </span>
+          <span class="shrink-0 text-muted-foreground">{moduleCount(m)}</span>
         </button>
       {/each}
     </aside>

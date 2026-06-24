@@ -3,7 +3,7 @@ import { rpc } from '$lib/server/rpc';
 
 // Öffentliche Landing/Übersicht: Hero + Kennzahlen + aktive Befehle.
 // Kein Redirect – Eingeloggte erreichen das Dashboard über die Navigation.
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, cookies }) => {
   let commands: { bot: unknown; prefix: unknown[]; slash: unknown[] } = {
     bot: null,
     prefix: [],
@@ -13,7 +13,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   let online = true;
 
   try {
-    commands = await rpc('core.commands', {});
+    commands = await rpc('core.commands', { locale: cookies.get('locale') ?? 'en-US' });
     stats = await rpc('core.stats', {});
   } catch {
     online = false;

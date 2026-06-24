@@ -42,8 +42,10 @@
   let repoBranch = '';
 
   // Diese Cogs sind für das Web-Dashboard zwingend erforderlich → „Erforderlich"-Pill.
-  const REQUIRED_COGS = new Set(['webdashboard', 'webdashboard_stats', 'web_serverstats']);
+  const REQUIRED_COGS = new Set(['webdashboard', 'webdashboard_stats']);
   const isRequired = (name: string) => REQUIRED_COGS.has(name.toLowerCase());
+  // Required cogs may be ENABLED freely; only unloading a loaded one is blocked.
+  const isLocked = (c: { name: string; loaded: boolean }) => isRequired(c.name) && c.loaded;
 
   // Repo-Filter: Dropdown mit allen vorkommenden Repos (+ "ohne Repo" falls vorhanden).
   let repoFilter = 'all';
@@ -171,7 +173,9 @@
       }
       syncingSlash = false;
     }
-    invalidateAll();
+    // Reconcile with server truth. downloader.repos now takes the Downloader lock,
+    // so this read waits for any in-flight update and never returns a partial scan.
+    await invalidateAll();
   }
 
   // Pro Cog: Update + Reload (schnell, KEIN Slash-Sync – der läuft einmal am Ende).
@@ -261,10 +265,10 @@
               <button
                 type="button"
                 aria-label="toggle"
-                on:click={() => !isRequired(c.name) && toggleCog(c)}
-                disabled={busy === 'cog:' + c.name || isRequired(c.name)}
-                title={isRequired(c.name) ? $t('cogs.required_hint') : ''}
-                class="relative h-5 w-9 shrink-0 rounded-full transition {c.loaded ? 'bg-primary' : 'bg-secondary'} {isRequired(c.name) ? 'cursor-not-allowed opacity-60' : ''}"
+                on:click={() => !isLocked(c) && toggleCog(c)}
+                disabled={busy === 'cog:' + c.name || isLocked(c)}
+                title={isLocked(c) ? $t('cogs.required_hint') : ''}
+                class="relative h-5 w-9 shrink-0 rounded-full transition {c.loaded ? 'bg-primary' : 'bg-secondary'} {isLocked(c) ? 'cursor-not-allowed opacity-60' : ''}"
               >
                 <span class="absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all {c.loaded ? 'left-[18px]' : 'left-0.5'}"></span>
               </button>

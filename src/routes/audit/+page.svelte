@@ -16,6 +16,20 @@
       })
     : entries;
 
+  // Pagination.
+  const PAGE_SIZES = [10, 20, 50, 100];
+  let pageSize = 10;
+  let page = 1;
+  $: totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  // Back to page 1 whenever the filter or the page size changes.
+  $: {
+    filter;
+    pageSize;
+    page = 1;
+  }
+  $: if (page > totalPages) page = totalPages;
+  $: paged = filtered.slice((page - 1) * pageSize, page * pageSize);
+
   async function refresh() {
     busy = true;
     try {
@@ -93,17 +107,42 @@
             </tr>
           </thead>
           <tbody>
-            {#each filtered as e, i (i)}
+            {#each paged as e, i (i)}
               <tr class="border-b border-border/50 last:border-0 align-top">
                 <td class="whitespace-nowrap px-4 py-2 text-muted-foreground">{fmtTime(e.time)}</td>
                 <td class="px-4 py-2"><code class={actionTone(e.action)}>{e.action}</code></td>
                 <td class="px-4 py-2">{e.user ?? e.user_id ?? '—'}</td>
                 <td class="px-4 py-2 text-muted-foreground">{e.guild ?? '—'}</td>
-                <td class="px-4 py-2 text-xs text-muted-foreground">{fmtDetail(e.detail)}</td>
+                <td class="max-w-[28rem] break-words px-4 py-2 text-xs text-muted-foreground">{fmtDetail(e.detail)}</td>
               </tr>
             {/each}
           </tbody>
         </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 text-sm">
+        <label class="flex items-center gap-2 text-muted-foreground">
+          {$t('audit.per_page')}
+          <select bind:value={pageSize} class="rounded-md border border-input bg-background px-2 py-1 text-sm">
+            {#each PAGE_SIZES as n}<option value={n}>{n}</option>{/each}
+          </select>
+        </label>
+        <div class="flex items-center gap-3">
+          <button
+            type="button"
+            class="rounded-md border border-border px-2.5 py-1 hover:bg-secondary disabled:opacity-40"
+            disabled={page <= 1}
+            aria-label={$t('audit.prev')}
+            on:click={() => (page = Math.max(1, page - 1))}>‹</button>
+          <span class="whitespace-nowrap text-muted-foreground">{$t('audit.page_of', { page, total: totalPages })}</span>
+          <button
+            type="button"
+            class="rounded-md border border-border px-2.5 py-1 hover:bg-secondary disabled:opacity-40"
+            disabled={page >= totalPages}
+            aria-label={$t('audit.next')}
+            on:click={() => (page = Math.min(totalPages, page + 1))}>›</button>
+        </div>
       </div>
     </Card>
   {/if}
