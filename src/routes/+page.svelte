@@ -1,6 +1,7 @@
 <script lang="ts">
   import Card from '$lib/components/ui/Card.svelte';
   import { t } from '$lib/i18n';
+  import { renderMarkdown } from '$lib/markdown';
 
   export let data: {
     commands: {
@@ -20,7 +21,7 @@
     } | null;
     online: boolean;
     user: { username: string } | null;
-    branding?: { description?: string; support_url?: string } | null;
+    branding?: { description?: string; support_url?: string; invite_url?: string } | null;
   };
 
   // Branding-Beschreibung hat Vorrang vor der Bot-About-Beschreibung.
@@ -90,7 +91,7 @@
       {/if}
 
       <div class="min-w-[240px] flex-1">
-        <p class="max-w-lg text-lg leading-snug">{description}</p>
+        <div class="max-w-lg text-lg leading-snug">{@html renderMarkdown(description)}</div>
         <div class="mt-4 flex items-center gap-2">
           <span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
           <span class="text-sm text-muted-foreground">
@@ -101,6 +102,11 @@
           {#if !data.user}
             <a href="/auth/login" class="inline-flex items-center justify-center rounded-md bg-[#5865F2] px-4 py-2.5 text-sm font-medium text-white hover:opacity-90">
               {$t('login.with_discord')}
+            </a>
+          {/if}
+          {#if data.branding?.invite_url}
+            <a href={data.branding.invite_url} target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-md bg-[#5865F2] px-4 py-2.5 text-sm font-medium text-white hover:opacity-90">
+              {$t('home.invite_me')}
             </a>
           {/if}
           {#if supportUrl}

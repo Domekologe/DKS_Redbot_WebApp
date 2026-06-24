@@ -16,6 +16,7 @@
 
   // Branding
   let ui = { ...(data.dash?.ui ?? {}) };
+  if (ui.short_desc === undefined) ui.short_desc = '';
 
   async function call(url: string, body: unknown, label: string) {
     busy = label;
@@ -111,7 +112,16 @@
       <div class="space-y-3">
         <div><label class="text-xs text-muted-foreground" for="t">{$t('settings.field_title')}</label><input id="t" bind:value={ui.title} class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm" /></div>
         <div><label class="text-xs text-muted-foreground" for="ic">{$t('settings.field_icon_url')}</label><input id="ic" bind:value={ui.icon} class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm" /></div>
-        <div><label class="text-xs text-muted-foreground" for="de">{$t('settings.field_description')}</label><input id="de" bind:value={ui.description} class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm" /></div>
+        <div>
+          <label class="text-xs text-muted-foreground" for="de">{$t('settings.field_description')}</label>
+          <textarea id="de" rows="4" bind:value={ui.description} class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm"></textarea>
+          <p class="mt-1 text-xs text-muted-foreground">{$t('settings.field_description_hint')}</p>
+        </div>
+        <div>
+          <label class="text-xs text-muted-foreground" for="sd">{$t('settings.field_short_desc')}</label>
+          <textarea id="sd" rows="2" bind:value={ui.short_desc} class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm"></textarea>
+          <p class="mt-1 text-xs text-muted-foreground">{$t('settings.field_short_desc_hint')}</p>
+        </div>
         <div><label class="text-xs text-muted-foreground" for="su">{$t('settings.field_support_url')}</label><input id="su" bind:value={ui.support_url} class="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm" /></div>
         <div class="flex gap-4">
           <div><label class="text-xs text-muted-foreground" for="co">{$t('settings.field_color')}</label>

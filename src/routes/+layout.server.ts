@@ -3,12 +3,15 @@ import { rpc } from '$lib/server/rpc';
 
 type NavPage = { slug: string; title: string; nav: boolean; visibility: string };
 type Branding = {
-  title: string;
-  icon: string;
-  description: string;
-  support_url: string;
-  color: string;
-  theme: string;
+  title?: string;
+  icon?: string;
+  description?: string;
+  short_desc?: string;
+  support_url?: string;
+  color?: string;
+  theme?: string;
+  invite_url?: string;
+  bot_avatar?: string | null;
 };
 
 // Modul-Cache: pages.list/dashboard.branding laufen sonst bei JEDER Navigation. Beides
@@ -26,9 +29,17 @@ export const load: LayoutServerLoad = async ({ locals }) => {
     try {
       const [p, b] = await Promise.all([
         rpc<{ pages: NavPage[] }>('pages.list', {}),
-        rpc<Branding>('dashboard.branding', {})
+        rpc<{ ui?: Record<string, string>; bot_avatar?: string; invite_url?: string }>(
+          'dashboard.branding',
+          {}
+        )
       ]);
-      _cache = { at: now, pages: p.pages ?? [], branding: b ?? null };
+      // Flatten ui.* to the top level (components read branding.title/.description/…)
+      // and carry the bot avatar (favicon) + invite URL.
+      const branding: Branding | null = b
+        ? { ...(b.ui ?? {}), bot_avatar: b.bot_avatar ?? null, invite_url: b.invite_url ?? '' }
+        : null;
+      _cache = { at: now, pages: p.pages ?? [], branding };
     } catch {
       // Gateway offline o. ä. – alten Cache behalten, aber TTL zurücksetzen.
       _cache = { at: now, pages: _cache.pages, branding: _cache.branding };

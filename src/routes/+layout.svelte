@@ -4,6 +4,8 @@
   import { invalidateAll } from '$app/navigation';
   import { setLocale, t, locale } from '$lib/i18n';
   import CommandPalette from '$lib/components/CommandPalette.svelte';
+  import NavLinks from '$lib/components/NavLinks.svelte';
+  import { page } from '$app/stores';
   export let data: {
     user: { username: string; avatar?: string | null } | null;
     pages?: Array<{ slug: string; title: string; nav: boolean; visibility: string }>;
@@ -11,9 +13,12 @@
       title?: string;
       icon?: string;
       description?: string;
+      short_desc?: string;
       support_url?: string;
       color?: string;
       theme?: string;
+      invite_url?: string;
+      bot_avatar?: string;
     } | null;
   };
 
@@ -72,12 +77,24 @@
     await invalidateAll();
   }
 
-  // Öffentliche Navigation (immer sichtbar); der Rest nur eingeloggt.
-  const publicNav = [
-    { href: '/', key: 'nav.overview' },
-    { href: '/commands', key: 'nav.commands' }
-  ];
+  // Mobiles Navigations-Drawer (Hamburger). Schließt automatisch bei Navigation.
+  let mobileNavOpen = false;
+  $: if ($page.url.pathname) mobileNavOpen = false;
 </script>
+
+<svelte:head>
+  <title>{brandTitle}</title>
+  <meta name="description" content={data.branding?.short_desc || data.branding?.description || ''} />
+  {#if data.branding?.bot_avatar}
+    <link rel="icon" href={data.branding.bot_avatar} />
+  {/if}
+  <!-- Open Graph (nice link previews) -->
+  <meta property="og:title" content={brandTitle} />
+  <meta property="og:description" content={data.branding?.short_desc || data.branding?.description || ''} />
+  {#if data.branding?.bot_avatar}
+    <meta property="og:image" content={data.branding.bot_avatar} />
+  {/if}
+</svelte:head>
 
 <CommandPalette user={data.user} pages={data.pages ?? []} />
 
@@ -91,32 +108,43 @@
       {/if}
       <span class="text-lg font-bold">{brandTitle}</span>
     </div>
-    <nav class="space-y-1 text-sm">
-      {#each publicNav as n}
-        <a href={n.href} class="block rounded-md px-3 py-2 hover:bg-secondary">{$t(n.key)}</a>
-      {/each}
-      {#each navPages as p (p.slug)}
-        <a href={`/p/${p.slug}`} class="block rounded-md px-3 py-2 hover:bg-secondary">
-          {p.title}{#if p.visibility === 'private'}<span class="ml-1 text-xs text-muted-foreground" title={$t('nav.private_hint')}>🔒</span>{/if}
-        </a>
-      {/each}
-      {#if data.user}
-        <a href="/guilds" class="block rounded-md px-3 py-2 hover:bg-secondary">{$t('nav.guilds')}</a>
-        <a href="/stats" class="block rounded-md px-3 py-2 hover:bg-secondary">{$t('nav.stats')}</a>
-        <a href="/announce" class="block rounded-md px-3 py-2 hover:bg-secondary">{$t('nav.announce')}</a>
-        <a href="/cogs" class="block rounded-md px-3 py-2 hover:bg-secondary">{$t('nav.cogs')}</a>
-        <a href="/settings" class="block rounded-md px-3 py-2 hover:bg-secondary">{$t('nav.settings')}</a>
-        <a href="/pages" class="block rounded-md px-3 py-2 hover:bg-secondary">{$t('nav.pages')}</a>
-        <a href="/audit" class="block rounded-md px-3 py-2 hover:bg-secondary">{$t('nav.audit')}</a>
-        <a href="/system" class="block rounded-md px-3 py-2 hover:bg-secondary">{$t('nav.system')}</a>
-        <a href="/docs/integration" class="block rounded-md px-3 py-2 text-muted-foreground hover:bg-secondary">{$t('nav.integration_docs')}</a>
-      {/if}
-    </nav>
+    <NavLinks user={data.user} navPages={navPages} />
   </aside>
+
+  <!-- Mobile nav drawer -->
+  {#if mobileNavOpen}
+    <div
+      class="fixed inset-0 z-40 bg-black/50 md:hidden"
+      role="presentation"
+      on:click={() => (mobileNavOpen = false)}
+    ></div>
+    <aside class="fixed inset-y-0 left-0 z-50 flex w-64 flex-col overflow-y-auto border-r border-border bg-card p-4 md:hidden">
+      <div class="mb-6 flex items-center justify-between px-2">
+        <div class="flex items-center gap-2">
+          {#if brandIcon}
+            <img src={brandIcon} alt="" class="h-6 w-6 rounded-md object-cover" />
+          {:else}
+            <span class="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">{brandTitle.charAt(0).toUpperCase()}</span>
+          {/if}
+          <span class="text-lg font-bold">{brandTitle}</span>
+        </div>
+        <button type="button" class="rounded-md p-1 text-muted-foreground hover:bg-secondary" aria-label="Close menu" on:click={() => (mobileNavOpen = false)}>✕</button>
+      </div>
+      <NavLinks user={data.user} navPages={navPages} onNavigate={() => (mobileNavOpen = false)} />
+    </aside>
+  {/if}
 
   <div class="flex flex-1 flex-col">
     <header class="flex items-center justify-between border-b border-border px-6 py-3">
-      <div class="text-base font-bold md:hidden">{brandTitle}</div>
+      <div class="flex items-center gap-2 md:hidden">
+        <button
+          type="button"
+          class="rounded-md border border-input p-1.5 text-lg leading-none"
+          aria-label="Open menu"
+          on:click={() => (mobileNavOpen = true)}
+        >☰</button>
+        <span class="text-base font-bold">{brandTitle}</span>
+      </div>
       <div class="ml-auto flex items-center gap-3">
         <button
           type="button"

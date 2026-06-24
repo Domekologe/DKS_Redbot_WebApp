@@ -1,6 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { rpc, authFromUser } from '$lib/server/rpc';
+import pkg from '../../../package.json';
 
 export interface SystemInfo {
   uptime_s: number | null;
@@ -40,5 +41,5 @@ export const load: PageServerLoad = async ({ locals }) => {
       online = false;
     }
   }
-  return { isOwner, info, online };
+  return { isOwner, info, online, version: pkg.version };
 };

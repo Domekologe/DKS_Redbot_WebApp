@@ -4,9 +4,38 @@
   import { t } from '$lib/i18n';
   import type { SystemInfo } from './+page.server';
 
-  export let data: { isOwner: boolean; info: SystemInfo | null; online: boolean };
+  export let data: { isOwner: boolean; info: SystemInfo | null; online: boolean; version: string };
 
   let refreshing = false;
+
+  // Update-Check (nur Pruefung, ohne Self-Update auszufuehren).
+  let checking = false;
+  let checkDone = false;
+  let checkAvailable = false;
+  let checkLatest = '';
+  let checkError = '';
+
+  async function checkUpdate() {
+    checking = true;
+    checkDone = false;
+    checkError = '';
+    try {
+      const r = await fetch('/api/update/check', { cache: 'no-store' });
+      const j = await r.json();
+      if (j.error && !('available' in j)) {
+        checkError = j.error;
+      } else {
+        checkAvailable = !!j.available;
+        checkLatest = j.latest ?? '';
+        if (j.error) checkError = j.error;
+        checkDone = true;
+      }
+    } catch (e) {
+      checkError = e instanceof Error ? e.message : 'Fehler';
+    } finally {
+      checking = false;
+    }
+  }
 
   // Update-Status
   let showConfirm = false;
@@ -206,6 +235,23 @@
     <Card class="p-5">
       <h2 class="mb-1 text-base font-semibold">{$t('system.update_title')}</h2>
       <p class="mb-3 text-sm text-muted-foreground">{$t('system.update_desc')}</p>
+
+      <!-- Update-Pruefung (ohne Self-Update) -->
+      <div class="mb-4 flex flex-wrap items-center gap-3">
+        <span class="text-sm text-muted-foreground">{$t('system.current_version')}: <code>v{data.version}</code></span>
+        <button
+          type="button"
+          class="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-secondary disabled:opacity-50"
+          disabled={checking}
+          on:click={checkUpdate}>{checking ? $t('system.check_checking') : $t('system.check_update')}</button>
+        {#if checkError}
+          <span class="text-sm text-destructive">✗ {$t('system.check_failed')}: {checkError}</span>
+        {:else if checkDone && checkAvailable}
+          <span class="text-sm text-amber-500">⬆ {$t('system.update_available', { current: data.version, latest: checkLatest })}</span>
+        {:else if checkDone}
+          <span class="text-sm text-emerald-500">✓ {$t('system.up_to_date', { current: data.version })}</span>
+        {/if}
+      </div>
 
       <!-- Voraussetzungen / Setup -->
       <div class="mb-4 rounded-md border border-border bg-secondary/40 p-3 text-sm">
