@@ -79,8 +79,35 @@
     }
   }
 
-  const toggleCog = (c: { name: string; loaded: boolean }) =>
-    post('/api/cogs', { name: c.name, action: c.loaded ? 'unload' : 'load' }, 'cog:' + c.name);
+  async function toggleCog(c: { name: string; loaded: boolean }) {
+    if (isLocked(c)) return;
+    if (c.loaded) {
+      await post('/api/cogs', { name: c.name, action: 'unload' }, 'cog:' + c.name);
+      return;
+    }
+    // Enabling a cog: load it, then reload it so its (slash) commands and dashboard
+    // contributions register and become visible, then refresh the view.
+    const headers = { 'content-type': 'application/json' };
+    busy = 'cog:' + c.name;
+    msg = '';
+    err = '';
+    try {
+      const res = await fetch('/api/cogs', { method: 'POST', headers, body: JSON.stringify({ name: c.name, action: 'load' }) });
+      const j = await res.json();
+      if (j.error) {
+        err = j.error;
+        return;
+      }
+      // Reload so newly loaded cogs' app/slash commands show up immediately.
+      await fetch('/api/cogs', { method: 'POST', headers, body: JSON.stringify({ name: c.name, action: 'reload' }) }).catch(() => {});
+      msg = $t('common.done');
+      await invalidateAll();
+    } catch (e) {
+      err = e instanceof Error ? e.message : 'Fehler';
+    } finally {
+      busy = '';
+    }
+  }
   const reloadCog = (name: string) => post('/api/cogs', { name, action: 'reload' }, 'reload:' + name);
   // Reloading webdashboard restarts the gateway this page talks to -> warn + confirm
   // first, and remind about the load order. Only for the webdashboard cog.
