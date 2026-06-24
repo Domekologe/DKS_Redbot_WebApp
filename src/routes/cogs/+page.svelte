@@ -6,7 +6,7 @@
 
   export let data: {
     cogs: Array<{ name: string; loaded: boolean; has_dashboard: boolean; repo?: string | null }>;
-    slash: Array<{ name: string; type: number; cog: string; enabled: boolean; orphan?: boolean }>;
+    slash: Array<{ name: string; type: number; cog: string; enabled: boolean; orphan?: boolean; synced?: boolean }>;
     repos: Array<{
       name: string;
       url: string | null;
@@ -349,19 +349,24 @@
             {#each slashByCog[cog] as s (s.name + s.type)}
               <div class="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-2 last:border-0">
                 <code class="text-sm {s.orphan ? 'text-destructive line-through' : s.enabled ? 'text-primary' : 'text-muted-foreground line-through'}">/{s.name}</code>
-                {#if s.orphan}
-                  <span class="shrink-0 text-[10px] text-destructive" title={$t('cogs.ghost_hint')}>{$t('cogs.ghost')}</span>
-                {:else}
-                  <button
-                    type="button"
-                    aria-label="umschalten"
-                    disabled={busy === 'slash:' + s.name}
-                    on:click={() => setSlash(s)}
-                    class="relative h-5 w-9 shrink-0 rounded-full transition {s.enabled ? 'bg-primary' : 'bg-secondary'}"
-                  >
-                    <span class="absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all {s.enabled ? 'left-[18px]' : 'left-0.5'}"></span>
-                  </button>
-                {/if}
+                <div class="flex shrink-0 items-center gap-2">
+                  {#if s.enabled && s.synced === false && !s.orphan}
+                    <span class="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-500" title={$t('cogs.not_synced_hint')}>{$t('cogs.not_synced')}</span>
+                  {/if}
+                  {#if s.orphan}
+                    <span class="text-[10px] text-destructive" title={$t('cogs.ghost_hint')}>{$t('cogs.ghost')}</span>
+                  {:else}
+                    <button
+                      type="button"
+                      aria-label="umschalten"
+                      disabled={busy === 'slash:' + s.name}
+                      on:click={() => setSlash(s)}
+                      class="relative h-5 w-9 shrink-0 rounded-full transition {s.enabled ? 'bg-primary' : 'bg-secondary'}"
+                    >
+                      <span class="absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all {s.enabled ? 'left-[18px]' : 'left-0.5'}"></span>
+                    </button>
+                  {/if}
+                </div>
               </div>
             {/each}
           </Card>

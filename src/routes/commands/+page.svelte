@@ -4,14 +4,14 @@
     commands: {
       bot: { name: string | null; avatar: string | null } | null;
       prefix: Array<{ name: string; description: string; cog: string; repo?: string | null }>;
-      slash: Array<{ name: string; description: string; cog: string; repo?: string | null; orphan?: boolean }>;
+      slash: Array<{ name: string; description: string; cog: string; repo?: string | null; orphan?: boolean; synced?: boolean }>;
       counts: { prefix: number; slash: number };
     };
     online: boolean;
     user: { username: string } | null;
   };
 
-  type Cmd = { name: string; description: string; cog: string; repo?: string | null; slash: boolean; prefix: boolean; orphan?: boolean };
+  type Cmd = { name: string; description: string; cog: string; repo?: string | null; slash: boolean; prefix: boolean; orphan?: boolean; synced?: boolean };
 
   let selectedModule: string | null = null; // null = alle
   let query = '';
@@ -30,8 +30,9 @@
         if (!e.description) e.description = s.description;
         if (e.cog === '—') e.cog = s.cog;
         if (!e.repo) e.repo = s.repo ?? null;
+        e.synced = s.synced;
       } else {
-        map.set(s.name, { name: s.name, description: s.description, cog: s.cog || '—', repo: s.repo ?? null, slash: true, prefix: false, orphan: s.orphan });
+        map.set(s.name, { name: s.name, description: s.description, cog: s.cog || '—', repo: s.repo ?? null, slash: true, prefix: false, orphan: s.orphan, synced: s.synced });
       }
     }
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
@@ -163,6 +164,9 @@
                       {#if cmd.orphan}
                         <span class="rounded bg-destructive/15 px-2 py-0.5 text-xs text-destructive" title={$t('commands.orphan_hint')}>{$t('commands.badge_orphan')}</span>
                       {:else}
+                      {#if cmd.slash && cmd.synced === false && data.user}
+                        <span class="rounded bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-500" title={$t('commands.not_synced_hint')}>{$t('commands.not_synced')}</span>
+                      {/if}
                       {#if cmd.slash}
                         <span class="rounded bg-primary/15 px-2 py-0.5 text-xs text-primary">{$t('commands.badge_slash')}</span>
                       {/if}
