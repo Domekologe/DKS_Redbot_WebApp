@@ -124,7 +124,7 @@
     // Fire the reload (the gateway dies mid-request, so don't await it), then count
     // down and hard-reload the page so it reconnects to the restarted gateway.
     reloadCog(name);
-    reloadCountdown = 10;
+    reloadCountdown = 30;
     const iv = setInterval(() => {
       reloadCountdown = (reloadCountdown ?? 1) - 1;
       if ((reloadCountdown ?? 0) <= 0) {
