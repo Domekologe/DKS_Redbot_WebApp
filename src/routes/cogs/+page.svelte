@@ -42,7 +42,7 @@
   let repoBranch = '';
 
   // Diese Cogs sind für das Web-Dashboard zwingend erforderlich → „Erforderlich"-Pill.
-  const REQUIRED_COGS = new Set(['webdashboard', 'web_serverstats']);
+  const REQUIRED_COGS = new Set(['webdashboard', 'webdashboard_stats', 'web_serverstats']);
   const isRequired = (name: string) => REQUIRED_COGS.has(name.toLowerCase());
 
   // Repo-Filter: Dropdown mit allen vorkommenden Repos (+ "ohne Repo" falls vorhanden).
@@ -261,9 +261,10 @@
               <button
                 type="button"
                 aria-label="toggle"
-                on:click={() => toggleCog(c)}
-                disabled={busy === 'cog:' + c.name}
-                class="relative h-5 w-9 shrink-0 rounded-full transition {c.loaded ? 'bg-primary' : 'bg-secondary'}"
+                on:click={() => !isRequired(c.name) && toggleCog(c)}
+                disabled={busy === 'cog:' + c.name || isRequired(c.name)}
+                title={isRequired(c.name) ? $t('cogs.required_hint') : ''}
+                class="relative h-5 w-9 shrink-0 rounded-full transition {c.loaded ? 'bg-primary' : 'bg-secondary'} {isRequired(c.name) ? 'cursor-not-allowed opacity-60' : ''}"
               >
                 <span class="absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all {c.loaded ? 'left-[18px]' : 'left-0.5'}"></span>
               </button>
@@ -271,7 +272,7 @@
             </div>
             <div class="flex shrink-0 items-center gap-2">
               {#if isRequired(c.name)}<span class="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-500" title={$t('cogs.required_hint')}>{$t('cogs.required')}</span>{/if}
-              {#if c.repo}<span class="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground" title="Repo">{c.repo}</span>{/if}
+              {#if c.repo}<span class="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground" title="Repo">{c.repo}</span>{:else}<span class="rounded bg-sky-500/15 px-1.5 py-0.5 text-[10px] text-sky-500" title={$t('cogs.system_hint')}>{$t('cogs.system')}</span>{/if}
               {#if c.has_dashboard}<span class="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] text-primary" title="Dashboard-Integration">DB</span>{/if}
               {#if c.loaded}<button type="button" class="text-xs text-muted-foreground hover:text-foreground" on:click={() => reloadCog(c.name)}>↻</button>{/if}
             </div>

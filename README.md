@@ -32,7 +32,7 @@ Architecture details: `DKS_Redcogs/webdashboard/ARCHITECTURE.md`.
 - **Statistics** (`/stats`): Statbot-style server analytics (overview, messages, voice,
   status, invites, activity, heatmaps, live "Now", peaks, leaderboard, retention,
   member/channel drilldown) with a server dropdown, time filter (up to 365 days) and
-  Chart.js charts. Requires the **`web_serverstats`** cog (collects the data).
+  Chart.js charts. Requires the **`webdashboard_stats`** cog (collects the data).
 - **Announcements** (`/announce`): embed builder with live preview, send to a channel.
 - **Settings** (`/settings`): global bot settings, branding (title/icon/color/theme),
   lock/refresh.
@@ -165,7 +165,7 @@ src/
     commands/                public command list
     guilds/ [id]/ settings/  server overview + bot settings (modules with tabs)
     cogs/                    cog management (Cogs/Slash/Downloader/Global)
-    stats/                   server statistics (cog web_serverstats)
+    stats/                   server statistics (cog webdashboard_stats)
     announce/                announcement/embed builder
     settings/                global settings + branding
     pages/  p/[slug]/        Custom Pages (Markdown editor + public view)

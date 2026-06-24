@@ -3,15 +3,15 @@
   export let data: {
     commands: {
       bot: { name: string | null; avatar: string | null } | null;
-      prefix: Array<{ name: string; description: string; cog: string }>;
-      slash: Array<{ name: string; description: string; cog: string }>;
+      prefix: Array<{ name: string; description: string; cog: string; repo?: string | null }>;
+      slash: Array<{ name: string; description: string; cog: string; repo?: string | null }>;
       counts: { prefix: number; slash: number };
     };
     online: boolean;
     user: { username: string } | null;
   };
 
-  type Cmd = { name: string; description: string; cog: string; slash: boolean; prefix: boolean };
+  type Cmd = { name: string; description: string; cog: string; repo?: string | null; slash: boolean; prefix: boolean };
 
   let selectedModule: string | null = null; // null = alle
   let query = '';
@@ -22,15 +22,16 @@
     if (!c) return [];
     const map = new Map<string, Cmd>();
     for (const p of c.prefix ?? [])
-      map.set(p.name, { name: p.name, description: p.description, cog: p.cog || '—', slash: false, prefix: true });
+      map.set(p.name, { name: p.name, description: p.description, cog: p.cog || '—', repo: p.repo ?? null, slash: false, prefix: true });
     for (const s of c.slash ?? []) {
       const e = map.get(s.name);
       if (e) {
         e.slash = true;
         if (!e.description) e.description = s.description;
         if (e.cog === '—') e.cog = s.cog;
+        if (!e.repo) e.repo = s.repo ?? null;
       } else {
-        map.set(s.name, { name: s.name, description: s.description, cog: s.cog || '—', slash: true, prefix: false });
+        map.set(s.name, { name: s.name, description: s.description, cog: s.cog || '—', repo: s.repo ?? null, slash: true, prefix: false });
       }
     }
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
@@ -58,6 +59,8 @@
     return acc;
   }, {});
   $: groupNames = Object.keys(groups).sort((a, b) => a.localeCompare(b));
+  // Repo eines Moduls (erstes Command mit Repo-Angabe).
+  const repoForCog = (cog: string) => groups[cog]?.find((x) => x.repo)?.repo ?? null;
 
   $: totals = {
     all: merged.length,
@@ -128,7 +131,10 @@
         <div class="space-y-6">
           {#each groupNames as cog (cog)}
             <section>
-              <h2 class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">{cog}</h2>
+              <div class="mb-2">
+                <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{cog}</h2>
+                {#if repoForCog(cog)}<p class="text-[10px] text-muted-foreground/70">{repoForCog(cog)}</p>{/if}
+              </div>
               <div class="overflow-hidden rounded-lg border border-border">
                 {#each groups[cog] as cmd (cmd.name)}
                   <div class="flex items-start justify-between gap-4 border-b border-border/60 px-4 py-2.5 last:border-0">

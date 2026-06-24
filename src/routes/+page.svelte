@@ -5,8 +5,8 @@
   export let data: {
     commands: {
       bot: { name: string | null; avatar: string | null } | null;
-      prefix: Array<{ name: string; description: string; cog: string }>;
-      slash: Array<{ name: string; description: string; cog: string }>;
+      prefix: Array<{ name: string; description: string; cog: string; repo?: string | null }>;
+      slash: Array<{ name: string; description: string; cog: string; repo?: string | null }>;
     };
     stats: {
       guild_count?: number;
@@ -36,13 +36,26 @@
   $: owner = stats.owner ?? null;
   $: description = stats.description ?? $t('home.default_description');
 
-  // Alle Module aus aktiven Befehlen (Slash + Prefix).
-  $: modules = Array.from(new Set([...(c.slash ?? []), ...(c.prefix ?? [])].map((x) => x.cog || '—'))).sort((a, b) => a.localeCompare(b));
+  // Alle aktiven Befehle (Slash + Prefix).
+  $: allCmds = [...(c.slash ?? []), ...(c.prefix ?? [])] as Cmd[];
 
+  // Repo-Filter: nur Repos, in denen es aktive Module gibt. Befehle ohne Repo
+  // werden als „__none__" (System) gruppiert.
+  $: repoOptions = Array.from(new Set(allCmds.map((x) => x.repo ?? '__none__'))).sort((a, b) =>
+    a === '__none__' ? 1 : b === '__none__' ? -1 : a.localeCompare(b)
+  );
+  let repo = 'all';
+  const inRepo = (x: Cmd) => repo === 'all' || (x.repo ?? '__none__') === repo;
+
+  // Modulfilter passt sich dem gewählten Repo an (nur Module aus aktiven Repos).
+  $: modules = Array.from(new Set(allCmds.filter(inRepo).map((x) => x.cog || '—'))).sort((a, b) => a.localeCompare(b));
   let module = 'all';
-  const byModule = (list: Cmd[]) => (module === 'all' ? list : list.filter((x) => (x.cog || '—') === module));
-  $: slash = byModule(c.slash ?? []);
-  $: prefix = byModule(c.prefix ?? []);
+  // Modulauswahl zurücksetzen, wenn sie unter dem gewählten Repo nicht mehr existiert.
+  $: if (module !== 'all' && !modules.includes(module)) module = 'all';
+
+  const matches = (x: Cmd) => inRepo(x) && (module === 'all' || (x.cog || '—') === module);
+  $: slash = (c.slash ?? []).filter(matches);
+  $: prefix = (c.prefix ?? []).filter(matches);
 
   function uptime(s: number | null | undefined) {
     if (s == null) return '—';
@@ -130,6 +143,12 @@
     <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
       <h2 class="text-lg font-semibold">{$t('home.active_commands')}</h2>
       <div class="flex items-center gap-3">
+        {#if repoOptions.length > 1}
+          <select bind:value={repo} class="rounded-md border border-input bg-background px-3 py-1.5 text-sm" title={$t('cogs.filter_repo')}>
+            <option value="all">{$t('home.all_repos')}</option>
+            {#each repoOptions as r}<option value={r}>{r === '__none__' ? $t('home.no_repo') : r}</option>{/each}
+          </select>
+        {/if}
         <select bind:value={module} class="rounded-md border border-input bg-background px-3 py-1.5 text-sm">
           <option value="all">{$t('home.all_modules')}</option>
           {#each modules as m}<option value={m}>{m}</option>{/each}
