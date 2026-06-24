@@ -6,7 +6,7 @@
 
   export let data: {
     cogs: Array<{ name: string; loaded: boolean; has_dashboard: boolean; repo?: string | null }>;
-    slash: Array<{ name: string; type: number; cog: string; enabled: boolean }>;
+    slash: Array<{ name: string; type: number; cog: string; enabled: boolean; orphan?: boolean }>;
     repos: Array<{
       name: string;
       url: string | null;
@@ -82,6 +82,30 @@
   const toggleCog = (c: { name: string; loaded: boolean }) =>
     post('/api/cogs', { name: c.name, action: c.loaded ? 'unload' : 'load' }, 'cog:' + c.name);
   const reloadCog = (name: string) => post('/api/cogs', { name, action: 'reload' }, 'reload:' + name);
+  // Reloading webdashboard restarts the gateway this page talks to -> warn + confirm
+  // first, and remind about the load order. Only for the webdashboard cog.
+  let reloadModalCog: string | null = null;
+  let reloadCountdown: number | null = null;
+  const isDashboardCog = (name: string) => name.toLowerCase() === 'webdashboard';
+  function requestReload(name: string) {
+    if (isDashboardCog(name)) reloadModalCog = name;
+    else reloadCog(name);
+  }
+  function confirmReload() {
+    const name = reloadModalCog;
+    if (!name) return;
+    // Fire the reload (the gateway dies mid-request, so don't await it), then count
+    // down and hard-reload the page so it reconnects to the restarted gateway.
+    reloadCog(name);
+    reloadCountdown = 10;
+    const iv = setInterval(() => {
+      reloadCountdown = (reloadCountdown ?? 1) - 1;
+      if ((reloadCountdown ?? 0) <= 0) {
+        clearInterval(iv);
+        location.reload();
+      }
+    }, 1000);
+  }
   const syncSlash = () => post('/api/slash', { action: 'sync' }, 'sync');
   const setSlash = (cmd: { name: string; type: number; enabled: boolean }) =>
     post('/api/slash', { action: 'set', name: cmd.name, type: cmd.type, enabled: !cmd.enabled }, 'slash:' + cmd.name);
@@ -93,7 +117,14 @@
     (acc[s.cog] ??= []).push(s);
     return acc;
   }, {});
-  $: slashCogs = Object.keys(slashByCog).sort((a, b) => a.localeCompare(b));
+  // Ghost cog (Discord registrations with no loaded cog) sorts to the bottom.
+  const isGhostCog = (cog: string) => (slashByCog[cog] ?? []).some((s) => s.orphan);
+  $: slashCogs = Object.keys(slashByCog).sort((a, b) => {
+    const ga = isGhostCog(a),
+      gb = isGhostCog(b);
+    if (ga !== gb) return ga ? 1 : -1;
+    return a.localeCompare(b);
+  });
   const cogAllEnabled = (cog: string) => (slashByCog[cog] ?? []).every((s) => s.enabled);
   let updateMsg = '';
   async function updateCheck() {
@@ -278,7 +309,7 @@
               {#if isRequired(c.name)}<span class="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-500" title={$t('cogs.required_hint')}>{$t('cogs.required')}</span>{/if}
               {#if c.repo}<span class="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground" title="Repo">{c.repo}</span>{:else}<span class="rounded bg-sky-500/15 px-1.5 py-0.5 text-[10px] text-sky-500" title={$t('cogs.system_hint')}>{$t('cogs.system')}</span>{/if}
               {#if c.has_dashboard}<span class="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] text-primary" title="Dashboard-Integration">DB</span>{/if}
-              {#if c.loaded}<button type="button" class="text-xs text-muted-foreground hover:text-foreground" on:click={() => reloadCog(c.name)}>↻</button>{/if}
+              {#if c.loaded}<button type="button" class="text-xs text-muted-foreground hover:text-foreground" on:click={() => requestReload(c.name)}>↻</button>{/if}
             </div>
           </Card>
         {/each}
@@ -296,33 +327,41 @@
 
       <div class="space-y-4">
         {#each slashCogs as cog (cog)}
-          <Card class="overflow-hidden p-0">
+          <Card class="overflow-hidden p-0 {isGhostCog(cog) ? 'border border-destructive/40' : ''}">
             <div class="flex items-center justify-between border-b border-border bg-secondary/40 px-4 py-2.5">
-              <span class="text-sm font-semibold">{cog}</span>
-              <!-- Cog-Master-Toggle: schaltet alle Befehle des Cogs -->
-              <button
-                type="button"
-                aria-label="alle umschalten"
-                title={$t('cogs.toggle_all_title')}
-                disabled={busy === 'slashcog:' + cog}
-                on:click={() => setCog(cog, !cogAllEnabled(cog))}
-                class="relative h-5 w-9 shrink-0 rounded-full transition {cogAllEnabled(cog) ? 'bg-primary' : 'bg-secondary'}"
-              >
-                <span class="absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all {cogAllEnabled(cog) ? 'left-[18px]' : 'left-0.5'}"></span>
-              </button>
+              <span class="text-sm font-semibold {isGhostCog(cog) ? 'text-destructive' : ''}">{cog}</span>
+              {#if isGhostCog(cog)}
+                <span class="rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] text-destructive" title={$t('cogs.ghost_hint')}>{$t('cogs.ghost')}</span>
+              {:else}
+                <!-- Cog-Master-Toggle: schaltet alle Befehle des Cogs -->
+                <button
+                  type="button"
+                  aria-label="alle umschalten"
+                  title={$t('cogs.toggle_all_title')}
+                  disabled={busy === 'slashcog:' + cog}
+                  on:click={() => setCog(cog, !cogAllEnabled(cog))}
+                  class="relative h-5 w-9 shrink-0 rounded-full transition {cogAllEnabled(cog) ? 'bg-primary' : 'bg-secondary'}"
+                >
+                  <span class="absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all {cogAllEnabled(cog) ? 'left-[18px]' : 'left-0.5'}"></span>
+                </button>
+              {/if}
             </div>
             {#each slashByCog[cog] as s (s.name + s.type)}
               <div class="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-2 last:border-0">
-                <code class="text-sm {s.enabled ? 'text-primary' : 'text-muted-foreground line-through'}">/{s.name}</code>
-                <button
-                  type="button"
-                  aria-label="umschalten"
-                  disabled={busy === 'slash:' + s.name}
-                  on:click={() => setSlash(s)}
-                  class="relative h-5 w-9 shrink-0 rounded-full transition {s.enabled ? 'bg-primary' : 'bg-secondary'}"
-                >
-                  <span class="absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all {s.enabled ? 'left-[18px]' : 'left-0.5'}"></span>
-                </button>
+                <code class="text-sm {s.orphan ? 'text-destructive line-through' : s.enabled ? 'text-primary' : 'text-muted-foreground line-through'}">/{s.name}</code>
+                {#if s.orphan}
+                  <span class="shrink-0 text-[10px] text-destructive" title={$t('cogs.ghost_hint')}>{$t('cogs.ghost')}</span>
+                {:else}
+                  <button
+                    type="button"
+                    aria-label="umschalten"
+                    disabled={busy === 'slash:' + s.name}
+                    on:click={() => setSlash(s)}
+                    class="relative h-5 w-9 shrink-0 rounded-full transition {s.enabled ? 'bg-primary' : 'bg-secondary'}"
+                  >
+                    <span class="absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all {s.enabled ? 'left-[18px]' : 'left-0.5'}"></span>
+                  </button>
+                {/if}
               </div>
             {/each}
           </Card>
@@ -414,7 +453,7 @@
                             class="rounded-md border border-border px-2 py-1 text-xs hover:bg-secondary disabled:opacity-40"
                             title={$t('cogs.reload_title')}
                             disabled={busy === 'reload:' + c.name}
-                            on:click={() => reloadCog(c.name)}
+                            on:click={() => requestReload(c.name)}
                           >{busy === 'reload:' + c.name ? '…' : $t('cogs.reload')}</button>
                           <button
                             type="button"
@@ -477,5 +516,46 @@
     {/if}
 
     <p class="text-xs text-muted-foreground">{$t('cogs.footer_hint')}</p>
+  {/if}
+
+  <!-- Confirmation modal: only for reloading the webdashboard cog (restarts the gateway). -->
+  {#if reloadModalCog}
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      role="presentation"
+      on:click|self={() => {
+        if (reloadCountdown === null) reloadModalCog = null;
+      }}
+    >
+      <div class="w-full max-w-md rounded-lg border border-border bg-background p-5 shadow-xl">
+        {#if reloadCountdown === null}
+          <h3 class="text-lg font-semibold">{$t('cogs.reload_dash_title')}</h3>
+          <p class="mt-2 text-sm text-muted-foreground">{$t('cogs.reload_dash_body')}</p>
+          <div class="mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+            <p class="font-medium text-amber-500">{$t('cogs.reload_dash_order_title')}</p>
+            <ol class="mt-1 list-decimal space-y-0.5 pl-5 text-muted-foreground">
+              <li>{$t('cogs.reload_dash_step1')}</li>
+              <li>{$t('cogs.reload_dash_step2')}</li>
+              <li>{$t('cogs.reload_dash_step3')}</li>
+            </ol>
+          </div>
+          <p class="mt-3 text-xs text-muted-foreground">⏱ {$t('cogs.reload_dash_wait')}</p>
+          <div class="mt-4 flex justify-end gap-2">
+            <button
+              type="button"
+              class="rounded-md border border-border px-4 py-2 text-sm hover:bg-secondary"
+              on:click={() => (reloadModalCog = null)}>{$t('common.cancel')}</button>
+            <button
+              type="button"
+              class="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+              on:click={confirmReload}>{$t('cogs.reload_dash_confirm')}</button>
+          </div>
+        {:else}
+          <h3 class="text-center text-lg font-semibold">{$t('cogs.reload_dash_restarting')}</h3>
+          <p class="my-3 text-center text-6xl font-bold tabular-nums text-primary">{reloadCountdown}</p>
+          <p class="text-center text-sm text-muted-foreground">{$t('cogs.reload_dash_countdown')}</p>
+        {/if}
+      </div>
+    </div>
   {/if}
 </div>

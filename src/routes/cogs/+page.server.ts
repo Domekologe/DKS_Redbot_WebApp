@@ -2,7 +2,7 @@ import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { rpc, authFromUser, RpcError } from '$lib/server/rpc';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, cookies }) => {
   if (!locals.user) throw redirect(302, '/login');
   const auth = authFromUser(locals.user);
 
@@ -30,7 +30,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   }
 
   try {
-    const s = await rpc<{ commands: typeof out.slash }>('slash.list', {}, auth);
+    const s = await rpc<{ commands: typeof out.slash }>('slash.list', { locale: cookies.get('locale') ?? 'en-US' }, auth);
     out.slash = s.commands ?? [];
   } catch {
     /* Slash optional */
