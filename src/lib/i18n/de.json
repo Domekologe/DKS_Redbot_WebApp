@@ -143,6 +143,8 @@
   "commands.none_found": "Keine Befehle gefunden.",
   "commands.badge_slash": "Slash",
   "commands.badge_prefix": "Prefix",
+  "commands.badge_orphan": "Nicht existierend",
+  "commands.orphan_hint": "Bei Discord registriert, aber kein geladener Cog verarbeitet ihn — mit [p]slash sync entfernen.",
   "cogs.title": "Cog-Verwaltung",
   "cogs.forbidden": "Nur der Bot-Owner kann die Cog-Verwaltung nutzen.",
   "cogs.tab_cogs": "Cogs",

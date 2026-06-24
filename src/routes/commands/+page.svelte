@@ -4,14 +4,14 @@
     commands: {
       bot: { name: string | null; avatar: string | null } | null;
       prefix: Array<{ name: string; description: string; cog: string; repo?: string | null }>;
-      slash: Array<{ name: string; description: string; cog: string; repo?: string | null }>;
+      slash: Array<{ name: string; description: string; cog: string; repo?: string | null; orphan?: boolean }>;
       counts: { prefix: number; slash: number };
     };
     online: boolean;
     user: { username: string } | null;
   };
 
-  type Cmd = { name: string; description: string; cog: string; repo?: string | null; slash: boolean; prefix: boolean };
+  type Cmd = { name: string; description: string; cog: string; repo?: string | null; slash: boolean; prefix: boolean; orphan?: boolean };
 
   let selectedModule: string | null = null; // null = alle
   let query = '';
@@ -31,7 +31,7 @@
         if (e.cog === '—') e.cog = s.cog;
         if (!e.repo) e.repo = s.repo ?? null;
       } else {
-        map.set(s.name, { name: s.name, description: s.description, cog: s.cog || '—', repo: s.repo ?? null, slash: true, prefix: false });
+        map.set(s.name, { name: s.name, description: s.description, cog: s.cog || '—', repo: s.repo ?? null, slash: true, prefix: false, orphan: s.orphan });
       }
     }
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
@@ -58,7 +58,14 @@
     (acc[c.cog] ??= []).push(c);
     return acc;
   }, {});
-  $: groupNames = Object.keys(groups).sort((a, b) => a.localeCompare(b));
+  // Ghost groups (Discord registrations with no loaded cog) sort to the bottom.
+  const isOrphanGroup = (cog: string) => (groups[cog] ?? []).some((c) => c.orphan);
+  $: groupNames = Object.keys(groups).sort((a, b) => {
+    const oa = isOrphanGroup(a),
+      ob = isOrphanGroup(b);
+    if (oa !== ob) return oa ? 1 : -1;
+    return a.localeCompare(b);
+  });
   // Globale Modul→Repo-Zuordnung (über ALLE Befehle, unabhängig vom Filter),
   // damit das Menü links und die Detailüberschrift beide das Repo zeigen.
   $: cogRepo = (() => {
@@ -142,22 +149,26 @@
           {#each groupNames as cog (cog)}
             <section>
               <div class="mb-2">
-                <h2 class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{cog}</h2>
-                {#if repoForCog(cog)}<p class="text-[10px] text-muted-foreground/70">{repoForCog(cog)}</p>{/if}
+                <h2 class="text-xs font-medium uppercase tracking-wide {isOrphanGroup(cog) ? 'text-destructive' : 'text-muted-foreground'}">{cog}</h2>
+                {#if isOrphanGroup(cog)}<p class="text-[10px] text-destructive/70">{$t('commands.orphan_hint')}</p>{:else if repoForCog(cog)}<p class="text-[10px] text-muted-foreground/70">{repoForCog(cog)}</p>{/if}
               </div>
-              <div class="overflow-hidden rounded-lg border border-border">
+              <div class="overflow-hidden rounded-lg border {isOrphanGroup(cog) ? 'border-destructive/40' : 'border-border'}">
                 {#each groups[cog] as cmd (cmd.name)}
                   <div class="flex items-start justify-between gap-4 border-b border-border/60 px-4 py-2.5 last:border-0">
                     <div class="min-w-0">
-                      <code class="break-all text-sm text-primary">{cmd.slash ? '/' : ''}{cmd.name}</code>
+                      <code class="break-all text-sm {cmd.orphan ? 'text-muted-foreground line-through' : 'text-primary'}">{cmd.slash ? '/' : ''}{cmd.name}</code>
                       <p class="mt-0.5 break-words text-sm text-muted-foreground">{cmd.description || '—'}</p>
                     </div>
                     <div class="flex shrink-0 gap-1">
+                      {#if cmd.orphan}
+                        <span class="rounded bg-destructive/15 px-2 py-0.5 text-xs text-destructive" title={$t('commands.orphan_hint')}>{$t('commands.badge_orphan')}</span>
+                      {:else}
                       {#if cmd.slash}
                         <span class="rounded bg-primary/15 px-2 py-0.5 text-xs text-primary">{$t('commands.badge_slash')}</span>
                       {/if}
                       {#if cmd.prefix}
                         <span class="rounded bg-secondary px-2 py-0.5 text-xs text-muted-foreground">{$t('commands.badge_prefix')}</span>
+                      {/if}
                       {/if}
                     </div>
                   </div>

@@ -143,6 +143,8 @@
   "commands.none_found": "No commands found.",
   "commands.badge_slash": "Slash",
   "commands.badge_prefix": "Prefix",
+  "commands.badge_orphan": "Not existent",
+  "commands.orphan_hint": "Registered with Discord but no loaded cog handles it — run [p]slash sync to remove.",
   "cogs.title": "Cog management",
   "cogs.forbidden": "Only the bot owner can use cog management.",
   "cogs.tab_cogs": "Cogs",
