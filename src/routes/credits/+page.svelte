@@ -19,22 +19,19 @@
   <Card class="p-5">
     <div class="space-y-4 text-sm">
       <p>
-        The base template for this Dashboard was created under the <strong>MIT License</strong>.
+        The <strong>DKS Redbot WebApp</strong> was built from scratch by
+        <strong>Domekologe</strong>, licensed under the
+        <strong>GNU General Public License v3.0</strong>.
       </p>
       <p>
-        The Dashboard was edited and recoded to work with Red-DiscordBot by
-        <strong>Neuro Assassin#4779</strong> and <strong>AAA3A</strong>, licensed under the
-        <strong>GNU Affero General Public License v3.0</strong>.
+        Inspired by the original Red-DiscordBot Dashboard by
+        <strong>Neuro Assassin#4779</strong> and <strong>AAA3A</strong>.
       </p>
       <p>
-        An important part of the internal Python RPC logic was coded by
-        <strong>Neuro Assassin#4779</strong>, licensed under the
-        <strong>GNU Affero General Public License v3.0</strong>.
-      </p>
-      <p>
-        This Dashboard was made for <strong>Red-DiscordBot</strong> — a multifunctional, fully
-        modular Discord bot — created by <strong>Twentysix</strong> and made great by many.
-        Red-DiscordBot is licensed under the <strong>GNU General Public License v3.0</strong>.
+        Built for <strong>Red-DiscordBot</strong> — a multifunctional, fully modular
+        Discord bot — created by <strong>Twentysix</strong> and made great by many.
+        Red-DiscordBot is licensed under the
+        <strong>GNU General Public License v3.0</strong>.
       </p>
     </div>
   </Card>
