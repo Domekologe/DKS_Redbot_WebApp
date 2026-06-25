@@ -1,5 +1,6 @@
 <script lang="ts">
   import Card from '$lib/components/ui/Card.svelte';
+  import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
   import ModuleTabs from '$lib/components/ModuleTabs.svelte';
   import { invalidateAll } from '$app/navigation';
   import { t } from '$lib/i18n';
@@ -35,6 +36,12 @@
   let busy = '';
   let msg = '';
   let err = '';
+
+  // Reusable confirm dialog for destructive actions (uninstall, repo remove).
+  let confirmDlg = { open: false, title: '', message: '', confirmLabel: '', onConfirm: () => {} };
+  function askConfirm(title: string, message: string, confirmLabel: string, fn: () => void) {
+    confirmDlg = { open: true, title, message, confirmLabel, onConfirm: fn };
+  }
 
   // Add-Repo-Formular
   let repoName = '';
@@ -108,6 +115,46 @@
       busy = '';
     }
   }
+  // Bulk-Enable: lädt alle (gefilterten) noch nicht geladenen, nicht geschützten
+  // Module nacheinander und lädt sie neu, damit ihre Slash-Befehle sofort
+  // erscheinen. Der Dashboard-Cog wird NICHT neu geladen (das würde das Gateway,
+  // mit dem diese Seite spricht, mitten im Lauf neu starten).
+  async function enableAll() {
+    const targets = filteredCogs.filter((c) => !c.loaded && !isLocked(c));
+    if (!targets.length) return;
+    busy = 'enableall';
+    msg = '';
+    err = '';
+    const headers = { 'content-type': 'application/json' };
+    const failed: string[] = [];
+    try {
+      for (const c of targets) {
+        const res = await fetch('/api/cogs', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ name: c.name, action: 'load' })
+        });
+        const j = await res.json().catch(() => ({ error: 'parse error' }));
+        if (j.error) {
+          failed.push(`${c.name}: ${j.error}`);
+          continue;
+        }
+        if (!isDashboardCog(c.name)) {
+          await fetch('/api/cogs', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ name: c.name, action: 'reload' })
+          }).catch(() => {});
+        }
+      }
+      msg = failed.length ? `${$t('common.done')} (${failed.length} ✗)` : $t('common.done');
+      err = failed.join('; ');
+      await invalidateAll();
+    } finally {
+      busy = '';
+    }
+  }
+
   const reloadCog = (name: string) => post('/api/cogs', { name, action: 'reload' }, 'reload:' + name);
   // Reloading webdashboard restarts the gateway this page talks to -> warn + confirm
   // first, and remind about the load order. Only for the webdashboard cog.
@@ -312,6 +359,13 @@
             <option value={r}>{r === '__none__' ? $t('cogs.filter_repo_none') : r}</option>
           {/each}
         </select>
+        <button
+          type="button"
+          class="rounded-md border border-border px-3 py-2 text-sm hover:bg-secondary disabled:opacity-50"
+          title={$t('cogs.enable_all_hint')}
+          disabled={busy === 'enableall' || !filteredCogs.some((c) => !c.loaded && !isLocked(c))}
+          on:click={enableAll}
+        >{busy === 'enableall' ? $t('cogs.enabling_all') : $t('cogs.enable_all')}</button>
       </div>
       {#if filteredCogs.length === 0}
         <p class="text-sm text-muted-foreground">{$t('cogs.filter_empty')}</p>
@@ -448,7 +502,7 @@
                     class="rounded-md border border-destructive/50 px-2 py-1 text-xs text-destructive disabled:opacity-40"
                     disabled={instCount > 0 || busy === 'repo_rm:' + repo.name}
                     title={instCount > 0 ? $t('cogs.remove_first_hint') : $t('cogs.remove_repo')}
-                    on:click={() => removeRepo(repo.name)}
+                    on:click={() => askConfirm($t('cogs.remove_repo'), $t('cogs.confirm_repo_remove', { name: repo.name }), $t('cogs.remove'), () => removeRepo(repo.name))}
                   >{$t('cogs.remove')}</button>
                 </div>
               </div>
@@ -491,7 +545,7 @@
                             type="button"
                             class="rounded-md border border-destructive/50 px-2 py-1 text-xs text-destructive disabled:opacity-40"
                             disabled={busy === 'uninst:' + c.name}
-                            on:click={() => uninstallCog(c.name)}
+                            on:click={() => askConfirm($t('cogs.uninstall'), $t('cogs.confirm_uninstall', { cog: c.name }), $t('cogs.uninstall'), () => uninstallCog(c.name))}
                           >{busy === 'uninst:' + c.name ? '…' : $t('cogs.uninstall')}</button>
                         {:else}
                           <button
@@ -590,4 +644,12 @@
       </div>
     </div>
   {/if}
+
+  <ConfirmDialog
+    bind:open={confirmDlg.open}
+    title={confirmDlg.title}
+    message={confirmDlg.message}
+    confirmLabel={confirmDlg.confirmLabel}
+    onConfirm={confirmDlg.onConfirm}
+  />
 </div>

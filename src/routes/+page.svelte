@@ -2,6 +2,7 @@
   import Card from '$lib/components/ui/Card.svelte';
   import { t } from '$lib/i18n';
   import { renderMarkdown } from '$lib/markdown';
+  import { liveStatus } from '$lib/stores/live';
 
   export let data: {
     commands: {
@@ -31,6 +32,13 @@
 
   $: c = data.commands ?? { bot: null, prefix: [], slash: [], counts: { prefix: 0, slash: 0 } };
   $: stats = data.stats ?? {};
+
+  // Live overview via SSE (/api/events) overrides the SSR snapshot once it arrives.
+  $: live = $liveStatus;
+  $: guildCount = live.overview?.guild_count ?? stats.guild_count;
+  $: userCount = live.overview?.user_count ?? stats.user_count;
+  $: uptimeS = live.overview?.bot_uptime_s ?? stats.uptime_s;
+  $: online = live.online ?? data.online;
 
   $: botName = stats.name ?? c.bot?.name ?? 'Bot';
   $: botAvatar = stats.avatar ?? c.bot?.avatar ?? null;
@@ -70,7 +78,7 @@
 </script>
 
 <div class="space-y-6">
-  {#if !data.online}
+  {#if !online}
     <Card class="border-destructive/50 p-4">
       <p class="text-sm text-destructive">{$t('home.gateway_offline')}</p>
     </Card>
@@ -93,9 +101,9 @@
       <div class="min-w-[240px] flex-1">
         <div class="max-w-lg text-lg leading-snug">{@html renderMarkdown(description)}</div>
         <div class="mt-4 flex items-center gap-2">
-          <span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+          <span class="h-2.5 w-2.5 rounded-full {online ? 'bg-emerald-500' : 'bg-destructive'}"></span>
           <span class="text-sm text-muted-foreground">
-            {$t('home.online')}{#if stats.latency_ms != null} · {$t('home.latency', { ms: stats.latency_ms })}{/if}
+            {online ? $t('home.online') : $t('home.gateway_offline')}{#if online && stats.latency_ms != null} · {$t('home.latency', { ms: stats.latency_ms })}{/if}
           </span>
         </div>
         <div class="mt-5 flex flex-wrap items-center gap-3">
@@ -124,21 +132,21 @@
     <Card class="flex items-center justify-between p-5">
       <div>
         <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{$t('home.kpi_servers')}</p>
-        <p class="mt-1.5 text-2xl font-semibold">{stats.guild_count ?? '—'}</p>
+        <p class="mt-1.5 text-2xl font-semibold">{guildCount ?? '—'}</p>
       </div>
       <span class="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/15"><span class="h-3 w-3 rounded-full bg-destructive"></span></span>
     </Card>
     <Card class="flex items-center justify-between p-5">
       <div>
         <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{$t('home.kpi_users')}</p>
-        <p class="mt-1.5 text-2xl font-semibold">{stats.user_count?.toLocaleString('de-DE') ?? '—'}</p>
+        <p class="mt-1.5 text-2xl font-semibold">{userCount?.toLocaleString('de-DE') ?? '—'}</p>
       </div>
       <span class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15"><span class="h-3 w-3 rounded-full bg-primary"></span></span>
     </Card>
     <Card class="flex items-center justify-between p-5">
       <div>
         <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{$t('home.kpi_online_since')}</p>
-        <p class="mt-1.5 text-2xl font-semibold">{uptime(stats.uptime_s)}</p>
+        <p class="mt-1.5 text-2xl font-semibold">{uptime(uptimeS)}</p>
       </div>
       <span class="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/15"><span class="h-3 w-3 rounded-full bg-emerald-500"></span></span>
     </Card>

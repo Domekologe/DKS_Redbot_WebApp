@@ -12,7 +12,8 @@ const METHODS: Record<string, string> = {
   pages_delete: 'pages.delete',
   pages_get: 'pages.get',
   audit_list: 'audit.list',
-  system_info: 'system.info'
+  system_info: 'system.info',
+  logs_list: 'logs.list'
 };
 
 export const POST: RequestHandler = async ({ locals, request }) => {

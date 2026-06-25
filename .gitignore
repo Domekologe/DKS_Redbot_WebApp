@@ -10,3 +10,5 @@ vite.config.ts.timestamp-*
 .npm-cache
 .cache
 deploy/sync.config
+mdtest.mts
+mdtest2.mts

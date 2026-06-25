@@ -53,6 +53,14 @@ Architecture details: `DKS_Redcogs/webdashboard/ARCHITECTURE.md`.
 - **System** (`/system`): bot health, versions, an optional GitHub self-updater, and a
   **"Check for updates"** button that compares the running version (from `package.json`) with
   the latest on the git remote and reports "up to date" / "update available".
+- **Logs** (`/logs`, owner only): live view of the bot's recent log records (in-memory ring
+  buffer attached while `webdashboard` is loaded) with a **level filter** (INFO/WARNING/ERROR),
+  search and expandable tracebacks.
+- **Live updates:** the overview/landing page uses **Server-Sent Events** (`/api/events`,
+  polled server-side so the gateway token stays on the server) to push live server/user counts,
+  uptime and online status — no client polling.
+- **Confirmation dialogs** guard destructive actions (cog **uninstall**, **repo remove**) with a
+  reusable modal (Esc/Enter, click-outside).
 
 ![Screenshot: the /stats analytics page](https://cdn.domekologe.eu/d6c3daa9-2e80-4cdb-8191-5c700b811e2e/0779ae9a-104a-46cd-a2cb-dc9d0c678485/9ee4d6a4-de8f-488b-a250-9c1229af8334.png)
 ![Screenshot: the /cogs management page](https://cdn.domekologe.eu/d6c3daa9-2e80-4cdb-8191-5c700b811e2e/0779ae9a-104a-46cd-a2cb-dc9d0c678485/183ca8ac-60eb-4f46-a47f-26968aac5046.png)

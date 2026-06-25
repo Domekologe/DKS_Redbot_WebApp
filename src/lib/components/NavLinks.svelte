@@ -24,19 +24,25 @@
     { href: '/settings', key: 'nav.settings', icon: 'gear' },
     { href: '/pages', key: 'nav.pages', icon: 'file' },
     { href: '/audit', key: 'nav.audit', icon: 'clipboard' },
+    { href: '/logs', key: 'nav.logs', icon: 'logs' },
     { href: '/system', key: 'nav.system', icon: 'activity' },
     { href: '/docs/integration', key: 'nav.integration_docs', icon: 'book', muted: true }
   ];
 
   $: path = $page.url.pathname;
   // Active when the path matches exactly, or (for non-root) is a sub-route.
-  function isActive(href: string): boolean {
-    if (href === '/') return path === '/';
-    return path === href || path.startsWith(href + '/');
+  // The current path is passed IN from the markup (as `cur`) on purpose: Svelte
+  // only tracks reactive variables referenced directly in a markup expression.
+  // If these helpers read the top-level `path` internally, `class={cls(href)}`
+  // would NOT recompute on client-side navigation and the active highlight would
+  // stay stuck on the previous page. Passing `path` makes the dependency explicit.
+  function isActive(href: string, cur: string): boolean {
+    if (href === '/') return cur === '/';
+    return cur === href || cur.startsWith(href + '/');
   }
-  function cls(href: string, muted = false): string {
+  function cls(href: string, cur: string, muted = false): string {
     const base = 'flex items-center gap-2 rounded-md px-3 py-2 transition-colors';
-    if (isActive(href)) return `${base} bg-secondary font-medium text-foreground`;
+    if (isActive(href, cur)) return `${base} bg-secondary font-medium text-foreground`;
     return `${base} hover:bg-secondary ${muted ? 'text-muted-foreground' : ''}`;
   }
   // External / non-highlighted link styling.
@@ -48,7 +54,7 @@
 <nav class="flex flex-col text-sm">
   <div class="space-y-1">
     {#each publicNav as n}
-      <a href={n.href} class={cls(n.href)} aria-current={isActive(n.href) ? 'page' : undefined} on:click={onNavigate}>
+      <a href={n.href} class={cls(n.href, path)} aria-current={isActive(n.href, path) ? 'page' : undefined} on:click={onNavigate}>
         <svg class="h-4 w-4 shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           {#if n.icon === 'home'}<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" />
           {:else if n.icon === 'terminal'}<polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" />{/if}
@@ -57,7 +63,7 @@
       </a>
     {/each}
     {#each navPages as p (p.slug)}
-      <a href={`/p/${p.slug}`} class={cls(`/p/${p.slug}`)} aria-current={isActive(`/p/${p.slug}`) ? 'page' : undefined} on:click={onNavigate}>
+      <a href={`/p/${p.slug}`} class={cls(`/p/${p.slug}`, path)} aria-current={isActive(`/p/${p.slug}`, path) ? 'page' : undefined} on:click={onNavigate}>
         <svg class="h-4 w-4 shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
         </svg>
@@ -66,7 +72,7 @@
     {/each}
     {#if user}
       {#each authNav as n}
-        <a href={n.href} class={cls(n.href, n.muted)} aria-current={isActive(n.href) ? 'page' : undefined} on:click={onNavigate}>
+        <a href={n.href} class={cls(n.href, path, n.muted)} aria-current={isActive(n.href, path) ? 'page' : undefined} on:click={onNavigate}>
           <svg class="h-4 w-4 shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             {#if n.icon === 'server'}<rect x="2" y="2" width="20" height="8" rx="2" /><rect x="2" y="14" width="20" height="8" rx="2" /><line x1="6" y1="6" x2="6.01" y2="6" /><line x1="6" y1="18" x2="6.01" y2="18" />
             {:else if n.icon === 'bar-chart'}<line x1="12" y1="20" x2="12" y2="10" /><line x1="18" y1="20" x2="18" y2="4" /><line x1="6" y1="20" x2="6" y2="16" />
@@ -76,7 +82,8 @@
             {:else if n.icon === 'file'}<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
             {:else if n.icon === 'clipboard'}<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><rect x="8" y="2" width="8" height="4" rx="1" ry="1" /><line x1="8" y1="11" x2="16" y2="11" /><line x1="8" y1="15" x2="14" y2="15" />
             {:else if n.icon === 'activity'}<polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-            {:else if n.icon === 'book'}<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />{/if}
+            {:else if n.icon === 'book'}<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+          {:else if n.icon === 'logs'}<line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />{/if}
           </svg>
           <span>{$t(n.key)}</span>
         </a>
@@ -104,7 +111,7 @@
       </svg>
       <span>{$t('nav.github_cogs')}</span>
     </a>
-    <a href="/credits" class={cls('/credits')} aria-current={isActive('/credits') ? 'page' : undefined} on:click={onNavigate}>
+    <a href="/credits" class={cls('/credits', path)} aria-current={isActive('/credits', path) ? 'page' : undefined} on:click={onNavigate}>
       <svg class="h-4 w-4 shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
       </svg>
