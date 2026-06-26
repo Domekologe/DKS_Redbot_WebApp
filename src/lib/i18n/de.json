@@ -162,6 +162,8 @@
   "commands.filter_all": "Alle",
   "commands.by_module": "Nach Modul",
   "commands.by_category": "Nach Kategorie",
+  "commands.filter_category": "Kategorie",
+  "commands.cat_all": "Alle",
   "commands.cat_admin": "Admin",
   "commands.cat_moderator": "Moderator",
   "commands.cat_user": "Benutzer",

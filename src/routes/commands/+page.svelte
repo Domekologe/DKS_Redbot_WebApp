@@ -16,6 +16,7 @@
   let selectedModule: string | null = null; // null = alle
   let query = '';
   let typeFilter: 'all' | 'slash' | 'prefix_only' = 'all';
+  let selectedCategory: 'all' | 'Admin' | 'Moderator' | 'Setup' | 'User' = 'all';
 
   // Prefix- und Slash-Listen zu einem Befehl je Name zusammenführen.
   function merge(c: typeof data.commands): Cmd[] {
@@ -46,6 +47,7 @@
 
   $: filtered = merged.filter((c) => {
     if (selectedModule && c.cog !== selectedModule) return false;
+    if (selectedCategory !== 'all' && (c.category || 'User') !== selectedCategory) return false;
     if (typeFilter === 'slash' && !c.slash) return false;
     if (typeFilter === 'prefix_only' && !(c.prefix && !c.slash)) return false;
     if (query) {
@@ -55,31 +57,21 @@
     return true;
   });
 
-  // Gruppierung der Anzeige: nach Modul ODER nach Kategorie (Admin/Moderator/Setup/User).
-  let groupBy: 'module' | 'category' = 'category';
-  const CATEGORY_ORDER = ['Admin', 'Moderator', 'Setup', 'User'];
+  // Kategorie-Dropdown-Filter (Alle / Admin / Moderator / Setup / Benutzer).
+  const CATEGORY_FILTERS = ['Admin', 'Moderator', 'Setup', 'User'];
+  // Gruppierung der Anzeige: nach Modul.
   $: groups = (() => {
     const acc: Record<string, Cmd[]> = {};
-    for (const cmd of filtered) {
-      const key = groupBy === 'category' ? cmd.category || 'User' : cmd.cog;
-      (acc[key] ??= []).push(cmd);
-    }
+    for (const cmd of filtered) (acc[cmd.cog] ??= []).push(cmd);
     return acc;
   })();
   const isOrphanGroup = (key: string) => (groups[key] ?? []).some((c) => c.orphan);
   $: groupNames = Object.keys(groups).sort((a, b) => {
-    if (groupBy === 'category') {
-      const ia = CATEGORY_ORDER.indexOf(a),
-        ib = CATEGORY_ORDER.indexOf(b);
-      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
-    }
     const oa = isOrphanGroup(a),
       ob = isOrphanGroup(b);
     if (oa !== ob) return oa ? 1 : -1;
     return a.localeCompare(b);
   });
-  // Header-Label: in der Kategorie-Ansicht übersetzt, sonst der Modulname.
-  $: catLabel = (key: string) => (groupBy === 'category' ? $t('commands.cat_' + key.toLowerCase()) : key);
   // Globale Modul→Repo-Zuordnung (über ALLE Befehle, unabhängig vom Filter),
   // damit das Menü links und die Detailüberschrift beide das Repo zeigen.
   $: cogRepo = (() => {
@@ -153,10 +145,15 @@
           <button class="rounded px-3 py-1.5 {typeFilter === 'slash' ? 'bg-secondary font-medium' : 'text-muted-foreground'}" on:click={() => (typeFilter = 'slash')}>{$t('commands.filter_slash')}</button>
           <button class="rounded px-3 py-1.5 {typeFilter === 'prefix_only' ? 'bg-secondary font-medium' : 'text-muted-foreground'}" on:click={() => (typeFilter = 'prefix_only')}>{$t('commands.filter_prefix_only')}</button>
         </div>
-        <div class="inline-flex rounded-md border border-border p-0.5 text-sm">
-          <button class="rounded px-3 py-1.5 {groupBy === 'category' ? 'bg-secondary font-medium' : 'text-muted-foreground'}" on:click={() => (groupBy = 'category')}>{$t('commands.by_category')}</button>
-          <button class="rounded px-3 py-1.5 {groupBy === 'module' ? 'bg-secondary font-medium' : 'text-muted-foreground'}" on:click={() => (groupBy = 'module')}>{$t('commands.by_module')}</button>
-        </div>
+        <label class="inline-flex items-center gap-2 text-sm">
+          <span class="text-muted-foreground">{$t('commands.filter_category')}</span>
+          <select bind:value={selectedCategory} class="rounded-md border border-input bg-background px-3 py-1.5 text-sm">
+            <option value="all">{$t('commands.cat_all')}</option>
+            {#each CATEGORY_FILTERS as cat (cat)}
+              <option value={cat}>{$t('commands.cat_' + cat.toLowerCase())}</option>
+            {/each}
+          </select>
+        </label>
         <input type="text" bind:value={query} placeholder={$t('common.search')} class="flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm" />
       </div>
 
