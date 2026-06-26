@@ -1,5 +1,6 @@
 <script lang="ts">
   import Card from './ui/Card.svelte';
+  import LineChart from './charts/LineChart.svelte';
   import { onMount } from 'svelte';
   import { locale } from '$lib/i18n';
 
@@ -54,6 +55,8 @@
     md: 'md:col-span-2',
     lg: 'md:col-span-3'
   };
+  // Palette for chart-kind widget datasets.
+  const CHART_COLORS = ['#5865F2', '#22c55e', '#f59e0b', '#ef4444', '#06b6d4', '#a855f7'];
 </script>
 
 <Card class={`p-4 ${colSpan[contribution.size ?? 'md']}`}>
@@ -100,6 +103,17 @@
     </ul>
   {:else if data?.kind === 'markdown'}
     <p class="whitespace-pre-wrap text-sm">{data.payload.text}</p>
+  {:else if data?.kind === 'chart'}
+    <div class="h-56">
+      <LineChart
+        labels={data.payload.labels ?? []}
+        datasets={(data.payload.series ?? []).map((s, i) => ({
+          label: s.label,
+          data: s.data,
+          color: CHART_COLORS[i % CHART_COLORS.length]
+        }))}
+      />
+    </div>
   {:else}
     <p class="text-sm text-muted-foreground">—</p>
   {/if}

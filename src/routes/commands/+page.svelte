@@ -3,15 +3,15 @@
   export let data: {
     commands: {
       bot: { name: string | null; avatar: string | null } | null;
-      prefix: Array<{ name: string; description: string; cog: string; repo?: string | null }>;
-      slash: Array<{ name: string; description: string; cog: string; repo?: string | null; orphan?: boolean; synced?: boolean }>;
+      prefix: Array<{ name: string; description: string; cog: string; repo?: string | null; category?: string }>;
+      slash: Array<{ name: string; description: string; cog: string; repo?: string | null; orphan?: boolean; synced?: boolean; category?: string }>;
       counts: { prefix: number; slash: number };
     };
     online: boolean;
     user: { username: string } | null;
   };
 
-  type Cmd = { name: string; description: string; cog: string; repo?: string | null; slash: boolean; prefix: boolean; orphan?: boolean; synced?: boolean };
+  type Cmd = { name: string; description: string; cog: string; repo?: string | null; slash: boolean; prefix: boolean; orphan?: boolean; synced?: boolean; category: string };
 
   let selectedModule: string | null = null; // null = alle
   let query = '';
@@ -22,7 +22,7 @@
     if (!c) return [];
     const map = new Map<string, Cmd>();
     for (const p of c.prefix ?? [])
-      map.set(p.name, { name: p.name, description: p.description, cog: p.cog || '—', repo: p.repo ?? null, slash: false, prefix: true });
+      map.set(p.name, { name: p.name, description: p.description, cog: p.cog || '—', repo: p.repo ?? null, slash: false, prefix: true, category: p.category || 'User' });
     for (const s of c.slash ?? []) {
       const e = map.get(s.name);
       if (e) {
@@ -31,8 +31,9 @@
         if (e.cog === '—') e.cog = s.cog;
         if (!e.repo) e.repo = s.repo ?? null;
         e.synced = s.synced;
+        if ((!e.category || e.category === 'User') && s.category) e.category = s.category;
       } else {
-        map.set(s.name, { name: s.name, description: s.description, cog: s.cog || '—', repo: s.repo ?? null, slash: true, prefix: false, orphan: s.orphan, synced: s.synced });
+        map.set(s.name, { name: s.name, description: s.description, cog: s.cog || '—', repo: s.repo ?? null, slash: true, prefix: false, orphan: s.orphan, synced: s.synced, category: s.category || 'User' });
       }
     }
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
@@ -54,19 +55,31 @@
     return true;
   });
 
-  // nach Modul gruppieren (für die Anzeige)
-  $: groups = filtered.reduce((acc: Record<string, Cmd[]>, c) => {
-    (acc[c.cog] ??= []).push(c);
+  // Gruppierung der Anzeige: nach Modul ODER nach Kategorie (Admin/Moderator/Setup/User).
+  let groupBy: 'module' | 'category' = 'category';
+  const CATEGORY_ORDER = ['Admin', 'Moderator', 'Setup', 'User'];
+  $: groups = (() => {
+    const acc: Record<string, Cmd[]> = {};
+    for (const cmd of filtered) {
+      const key = groupBy === 'category' ? cmd.category || 'User' : cmd.cog;
+      (acc[key] ??= []).push(cmd);
+    }
     return acc;
-  }, {});
-  // Ghost groups (Discord registrations with no loaded cog) sort to the bottom.
-  const isOrphanGroup = (cog: string) => (groups[cog] ?? []).some((c) => c.orphan);
+  })();
+  const isOrphanGroup = (key: string) => (groups[key] ?? []).some((c) => c.orphan);
   $: groupNames = Object.keys(groups).sort((a, b) => {
+    if (groupBy === 'category') {
+      const ia = CATEGORY_ORDER.indexOf(a),
+        ib = CATEGORY_ORDER.indexOf(b);
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+    }
     const oa = isOrphanGroup(a),
       ob = isOrphanGroup(b);
     if (oa !== ob) return oa ? 1 : -1;
     return a.localeCompare(b);
   });
+  // Header-Label: in der Kategorie-Ansicht übersetzt, sonst der Modulname.
+  $: catLabel = (key: string) => (groupBy === 'category' ? $t('commands.cat_' + key.toLowerCase()) : key);
   // Globale Modul→Repo-Zuordnung (über ALLE Befehle, unabhängig vom Filter),
   // damit das Menü links und die Detailüberschrift beide das Repo zeigen.
   $: cogRepo = (() => {
@@ -140,6 +153,10 @@
           <button class="rounded px-3 py-1.5 {typeFilter === 'slash' ? 'bg-secondary font-medium' : 'text-muted-foreground'}" on:click={() => (typeFilter = 'slash')}>{$t('commands.filter_slash')}</button>
           <button class="rounded px-3 py-1.5 {typeFilter === 'prefix_only' ? 'bg-secondary font-medium' : 'text-muted-foreground'}" on:click={() => (typeFilter = 'prefix_only')}>{$t('commands.filter_prefix_only')}</button>
         </div>
+        <div class="inline-flex rounded-md border border-border p-0.5 text-sm">
+          <button class="rounded px-3 py-1.5 {groupBy === 'category' ? 'bg-secondary font-medium' : 'text-muted-foreground'}" on:click={() => (groupBy = 'category')}>{$t('commands.by_category')}</button>
+          <button class="rounded px-3 py-1.5 {groupBy === 'module' ? 'bg-secondary font-medium' : 'text-muted-foreground'}" on:click={() => (groupBy = 'module')}>{$t('commands.by_module')}</button>
+        </div>
         <input type="text" bind:value={query} placeholder={$t('common.search')} class="flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm" />
       </div>
 
@@ -150,8 +167,8 @@
           {#each groupNames as cog (cog)}
             <section>
               <div class="mb-2">
-                <h2 class="text-xs font-medium uppercase tracking-wide {isOrphanGroup(cog) ? 'text-destructive' : 'text-muted-foreground'}">{cog}</h2>
-                {#if isOrphanGroup(cog)}<p class="text-[10px] text-destructive/70">{$t('commands.orphan_hint')}</p>{:else if repoForCog(cog)}<p class="text-[10px] text-muted-foreground/70">{repoForCog(cog)}</p>{/if}
+                <h2 class="text-xs font-medium uppercase tracking-wide {isOrphanGroup(cog) ? 'text-destructive' : 'text-muted-foreground'}">{catLabel(cog)}</h2>
+                {#if isOrphanGroup(cog)}<p class="text-[10px] text-destructive/70">{$t('commands.orphan_hint')}</p>{:else if groupBy === 'module' && repoForCog(cog)}<p class="text-[10px] text-muted-foreground/70">{repoForCog(cog)}</p>{/if}
               </div>
               <div class="overflow-hidden rounded-lg border {isOrphanGroup(cog) ? 'border-destructive/40' : 'border-border'}">
                 {#each groups[cog] as cmd (cmd.name)}
