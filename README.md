@@ -22,7 +22,7 @@ Architecture details: `DKS_Redcogs/webdashboard/ARCHITECTURE.md`.
 
 ## Features
 
-- Public landing/overview + **command list** (no login; the command list can be **grouped by module or by category** — Admin / Moderator / Setup / User, auto-detected from each command's permission level). The overview shows the bot's
+- Public landing/overview + **command list** (no login; grouped by module, with a **category dropdown filter** — All / Admin / Moderator / Setup / User, auto-detected from each command's permission level — to show only one category at a time). The overview shows the bot's
   **Markdown** description (GitHub-flavored) and an **"Invite me"** button (the bot's OAuth
   invite, auto-built from the client id with `scope=bot+applications.commands&permissions=8`,
   overridable via the `invite_url` branding field).

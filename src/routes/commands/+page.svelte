@@ -164,8 +164,8 @@
           {#each groupNames as cog (cog)}
             <section>
               <div class="mb-2">
-                <h2 class="text-xs font-medium uppercase tracking-wide {isOrphanGroup(cog) ? 'text-destructive' : 'text-muted-foreground'}">{catLabel(cog)}</h2>
-                {#if isOrphanGroup(cog)}<p class="text-[10px] text-destructive/70">{$t('commands.orphan_hint')}</p>{:else if groupBy === 'module' && repoForCog(cog)}<p class="text-[10px] text-muted-foreground/70">{repoForCog(cog)}</p>{/if}
+                <h2 class="text-xs font-medium uppercase tracking-wide {isOrphanGroup(cog) ? 'text-destructive' : 'text-muted-foreground'}">{cog}</h2>
+                {#if isOrphanGroup(cog)}<p class="text-[10px] text-destructive/70">{$t('commands.orphan_hint')}</p>{:else if repoForCog(cog)}<p class="text-[10px] text-muted-foreground/70">{repoForCog(cog)}</p>{/if}
               </div>
               <div class="overflow-hidden rounded-lg border {isOrphanGroup(cog) ? 'border-destructive/40' : 'border-border'}">
                 {#each groups[cog] as cmd (cmd.name)}
