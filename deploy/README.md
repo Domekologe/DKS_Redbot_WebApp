@@ -44,6 +44,24 @@ sudo bash deploy/update.sh              # Update: pull + build + restart
 sudo systemctl daemon-reload && sudo systemctl enable --now dks-dashboard
 ```
 
+### Migration dks -> pdc (einmalig)
+Um eine bestehende `dks`-Installation auf die neue `pdc`-Identität umzustellen
+(neuer System-User, neuer Service-Name, `origin` auf das neue Repo), gibt es
+`deploy/migrate.sh`. Es laesst das App-Verzeichnis am Ort und behaelt den alten
+Service/User deaktiviert als Fallback. **Einmalig mit root ausfuehren:**
+```bash
+sudo bash deploy/migrate.sh
+```
+Anpassbar ueber Umgebungsvariablen (Defaults):
+```bash
+NEW_SERVICE_NAME=pdc-redbot-webapp NEW_SERVICE_USER=pdc \
+OLD_SERVICE_NAME=dks-dashboard OLD_SERVICE_USER=dks \
+  sudo -E bash deploy/migrate.sh
+```
+Hinweis: Waehrend des Rebuilds gibt es eine kurze Downtime (der alte Dienst wird
+zuerst gestoppt). Rollback: `sudo systemctl enable --now dks-dashboard` (nachdem
+der neue Dienst gestoppt wurde).
+
 ---
 
 ## 🇬🇧 Quick start (copy/paste)
@@ -86,3 +104,21 @@ Copy `dks-dashboard.service` to `/etc/systemd/system/`, adjust paths/user, then:
 ```bash
 sudo systemctl daemon-reload && sudo systemctl enable --now dks-dashboard
 ```
+
+### Migration dks -> pdc (one-time)
+To move an existing `dks` install to the new `pdc` identity (new system user, new
+service name, `origin` re-pointed to the new repo), use `deploy/migrate.sh`. It
+keeps the app directory in place and keeps the old service/user disabled as a
+fallback. **Run once as root:**
+```bash
+sudo bash deploy/migrate.sh
+```
+Configurable via environment variables (defaults):
+```bash
+NEW_SERVICE_NAME=pdc-redbot-webapp NEW_SERVICE_USER=pdc \
+OLD_SERVICE_NAME=dks-dashboard OLD_SERVICE_USER=dks \
+  sudo -E bash deploy/migrate.sh
+```
+Note: there is a short downtime during the rebuild (the old service is stopped
+first). Rollback: `sudo systemctl enable --now dks-dashboard` (after stopping the
+new service).

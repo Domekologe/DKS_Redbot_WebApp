@@ -1,3 +1,8 @@
+> [!WARNING]
+> **This repository is no longer maintained.**
+> Development has moved to a new repository: **[PD-Codes/PDC_Redbot_Webapp](https://github.com/PD-Codes/PDC_Redbot_Webapp)**.
+> Please switch to the new repo for updates and support. Existing self-hosted instances will migrate automatically the next time you run the built-in update function.
+
 # DKS Redbot WebApp
 
 A modern, modular and secure web dashboard (frontend + BFF) for the DKS Red-DiscordBot.

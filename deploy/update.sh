@@ -45,11 +45,27 @@ as_service() {
 GIT=(git -c "safe.directory=$APP_DIR" -c "safe.directory=*" \
      -c "core.excludesFile=/dev/null" -c "core.attributesFile=/dev/null")
 
+# One-time migration: the project moved to a new GitHub repository. On every
+# update we make sure the "origin" remote points at the new repo, so this update
+# (and all future ones) pull from there. Overridable via NEW_ORIGIN_URL if needed.
+NEW_ORIGIN_URL="${NEW_ORIGIN_URL:-https://github.com/PD-Codes/PDC_Redbot_Webapp.git}"
+
 # Aktuellen Stand holen (nur wenn es ein Git-Repo ist).
 # Ein Deploy-Checkout soll GitHub exakt spiegeln, daher fetch + hard reset
 # statt "pull": so blockieren lokale Aenderungen an getrackten Dateien das
 # Update NIE (untrackte Dateien wie .env bleiben unangetastet).
 if [ -d .git ]; then
+  # Migrate the remote to the new repository if it still points somewhere else.
+  CUR_ORIGIN="$(as_service "${GIT[@]}" remote get-url origin 2>/dev/null || echo '')"
+  if [ "$CUR_ORIGIN" != "$NEW_ORIGIN_URL" ]; then
+    echo "==> Migrating origin: ${CUR_ORIGIN:-<none>} -> ${NEW_ORIGIN_URL}"
+    if [ -n "$CUR_ORIGIN" ]; then
+      as_service "${GIT[@]}" remote set-url origin "$NEW_ORIGIN_URL"
+    else
+      as_service "${GIT[@]}" remote add origin "$NEW_ORIGIN_URL"
+    fi
+  fi
+
   echo "==> git fetch"
   as_service "${GIT[@]}" fetch --prune origin
   BRANCH="${DEPLOY_BRANCH:-$(as_service "${GIT[@]}" rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)}"

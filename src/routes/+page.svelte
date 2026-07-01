@@ -84,6 +84,22 @@
     </Card>
   {/if}
 
+  <!-- Deprecation notice: project migrated to a new repository. Shown to logged-in users. -->
+  {#if data.user}
+    <Card class="border-amber-500/50 bg-amber-500/10 p-4">
+      <p class="text-sm font-semibold text-amber-600 dark:text-amber-400">{$t('home.deprecated_title')}</p>
+      <p class="mt-1 text-sm text-muted-foreground">{$t('home.deprecated_body')}</p>
+      <div class="mt-3 flex flex-wrap items-center gap-3">
+        <a href="/system" class="inline-flex items-center justify-center rounded-md bg-amber-500 px-3 py-2 text-sm font-medium text-white hover:opacity-90">
+          {$t('home.deprecated_action')}
+        </a>
+        <a href="https://github.com/PD-Codes/PDC_Redbot_Webapp" target="_blank" rel="noopener noreferrer" class="text-sm text-primary hover:underline">
+          {$t('home.deprecated_repo')}
+        </a>
+      </div>
+    </Card>
+  {/if}
+
   <!-- Hero -->
   <Card class="p-7">
     {#if owner}<p class="text-sm font-semibold text-muted-foreground">{$t('home.powered_by', { owner })}</p>{/if}
